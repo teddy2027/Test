@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "Schema validation (Zod)",
+      "passed": true,
+      "count": 2021
+    },
+    {
+      "name": "Company IDs are valid and unique",
+      "passed": true,
+      "count": 1612
+    },
+    {
+      "name": "Every financial period is uniquely identified",
+      "passed": true,
+      "count": 1147
+    },
+    {
+      "name": "Revenue, COGS and gross profit reconcile",
+      "passed": true,
+      "count": 392
+    },
+    {
+      "name": "EBITDA = gross profit − operating expenses",
+      "passed": true,
+      "count": 392
+    },
+    {
+      "name": "Labor categories are mutually exclusive (no double counting)",
+      "passed": true,
+      "count": 392
+    },
+    {
+      "name": "Cash roll-forward and cash-flow model (local currency)",
+      "passed": true,
+      "count": 392
+    },
+    {
+      "name": "Budgets link to valid companies and periods; budget EBITDA reconciles",
+      "passed": true,
+      "count": 363
+    },
+    {
+      "name": "ARR only reported for subscription businesses",
+      "passed": true,
+      "count": 392
+    },
+    {
+      "name": "Entity ledgers reconcile to consolidated revenue and EBITDA",
+      "passed": true,
+      "count": 132
+    }
+  ],
+  "issues": []
+}

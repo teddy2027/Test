@@ -1,0 +1,92 @@
+@import "@fontsource-variable/inter";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * DESIGN TOKENS
+ * dualentry.com could not be reached from the build environment, so these values
+ * are a professional approximation of a modern AI-native ERP identity (ink-navy
+ * neutrals, a confident blue accent). Every color in the app resolves to these
+ * variables — adjust here to match official brand guidelines.
+ */
+:root {
+  --canvas: 246 247 249;
+  --surface: 255 255 255;
+  --subtle: 249 250 251;
+  --line: 230 232 236;
+  --line-strong: 208 213 221;
+  --ink: 13 18 32;
+  --ink-2: 52 60 77;
+  --muted: 98 107 124;
+  --faint: 148 156 170;
+
+  --brand: 37 99 235;
+  --brand-strong: 29 78 216;
+  --brand-soft: 236 242 255;
+  --brand-ink: 23 54 150;
+
+  --side: 11 17 32;
+  --side-line: 31 41 61;
+  --side-ink: 229 233 241;
+  --side-muted: 140 151 172;
+  --side-active: 27 38 62;
+
+  --pos: 4 120 87;
+  --pos-soft: 230 246 239;
+  --neg: 190 52 38;
+  --neg-soft: 253 238 235;
+  --warn: 166 103 8;
+  --warn-soft: 254 245 225;
+  --info: 51 87 180;
+  --info-soft: 238 242 252;
+
+  /* Chart identity palette (validated categorical reference order, light mode) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-muted: #c3c9d4;
+  --chart-grid: #eceef2;
+  --chart-axis: #8a93a3;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body {
+  background: rgb(var(--canvas));
+  color: rgb(var(--ink));
+  font-feature-settings: "cv11", "ss01";
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+
+/* Scrollbars */
+.thin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: rgb(var(--line-strong)); border-radius: 8px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Recharts tweaks */
+.recharts-cartesian-axis-tick-value { font-size: 11px; fill: var(--chart-axis); }
+.recharts-tooltip-cursor { fill: rgba(15, 23, 42, 0.04); }
+.recharts-surface:focus, .recharts-wrapper:focus, .recharts-sector:focus, path.recharts-rectangle:focus { outline: none; }
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+.animate-in { animation: fade-in 160ms ease-out; }
+@keyframes pulse-dot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+.typing-dot { animation: pulse-dot 1s infinite ease-in-out; }
+
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  body { background: white; }
+  .no-print { display: none !important; }
+  .print-area { box-shadow: none !important; border: none !important; }
+  .print-break { break-before: page; }
+}

@@ -1,0 +1,16 @@
+id,companyId,name,country,currency,role,sinceMonth,transactionId
+atlas-software-e1,atlas-software,Atlas Software Inc.,United States,USD,Operating,0,
+atlas-software-e2,atlas-software,Atlas Software Canada ULC,Canada,CAD,Operating,0,
+atlas-software-e3,atlas-software,Atlas Software GmbH,Germany,EUR,Operating,0,
+atlas-software-e4,atlas-software,Atlas Software Pty Ltd,Australia,AUD,Operating,0,
+atlas-software-e5,atlas-software,Atlas IP Holdings LLC,United States,USD,IP holding,0,
+atlas-software-e6,atlas-software,Atlas Software India Pvt Ltd,India,INR,Shared services,0,
+atlas-software-a1,atlas-software,Ledgerline Ltd,United Kingdom,GBP,Acquired,2,tx-atlas-ledgerline
+beacon-analytics-e1,beacon-analytics,Beacon Analytics Inc.,United States,USD,Operating,0,
+beacon-analytics-e2,beacon-analytics,Beacon Analytics Ltd,United Kingdom,GBP,Operating,0,
+northstar-systems-e1,northstar-systems,Northstar Systems Inc.,United States,USD,Operating,0,
+northstar-systems-e2,northstar-systems,Northstar Systems Ltd,United Kingdom,GBP,Operating,0,
+northstar-systems-e3,northstar-systems,Northstar Shared Services Pvt Ltd,India,INR,Shared services,0,
+northstar-systems-a1,northstar-systems,Vantage Data Systems LLC,United States,USD,Acquired,28,tx-northstar-vantage
+lattice-technologies-e1,lattice-technologies,Lattice Technologies Inc.,United States,USD,Operating,0,
+lattice-technologies-e2,lattice-technologies,Lattice Technologies Canada Inc.,Canada,CAD,Operating,0,
