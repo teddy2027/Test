@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import * as React from "react";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, CircleDashed, Clock, Database, Minus, Plug, Star, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, CircleDashed, Clock, Minus, Plug, Star, Upload, XCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { favorability, type MetricFormat } from "@/lib/engine/metrics";
 import type { Company } from "@/lib/data/types";
@@ -44,7 +44,13 @@ export function Delta({
   );
 }
 
-export function StatusPill({ status, months, expected }: { status: ReportingStatus; months?: number; expected?: number }) {
+export function StatusPill({ status, months, expected, awaiting }: { status: ReportingStatus; months?: number; expected?: number; awaiting?: boolean }) {
+  if (awaiting && status !== "complete")
+    return (
+      <Badge tone="info">
+        <Clock className="h-3 w-3" /> Awaiting data
+      </Badge>
+    );
   if (status === "complete")
     return (
       <Badge tone="pos">
@@ -65,36 +71,36 @@ export function StatusPill({ status, months, expected }: { status: ReportingStat
 }
 
 export function ConnectionBadge({ company, compact }: { company: Company; compact?: boolean }) {
+  if (company.connection === "dualentry" && company.lastReportedMonth < 0)
+    return (
+      <Tip content="Data-sharing request sent. Data appears once the company approves the scope in DualEntry.">
+        <Badge tone="info">
+          <Clock className="h-3 w-3" />
+          {compact ? "Awaiting approval" : "DualEntry · awaiting approval"}
+        </Badge>
+      </Tip>
+    );
   if (company.connection === "dualentry")
     return (
-      <Tip content="Authorized live connection to the company's DualEntry ledger: daily sync, entity-level and account-level detail.">
+      <Tip content="Authorized live connection to the company's DualEntry ledger: published at each close, entity-level and account-level detail within the scope the company approved.">
         <Badge tone="brand">
           <Plug className="h-3 w-3" />
           {compact ? "DualEntry" : "DualEntry · live"}
         </Badge>
       </Tip>
     );
-  if (company.connection === "upload")
-    return (
-      <Tip content={`Standardized monthly upload exported from ${company.accountingSystem}. Consolidated figures as submitted.`}>
-        <Badge tone="outline">
-          <Upload className="h-3 w-3" />
-          {compact ? company.accountingSystem : `Upload · ${company.accountingSystem}`}
-        </Badge>
-      </Tip>
-    );
   return (
-    <Tip content={`No system connection. Data arrives as an emailed reporting pack from ${company.accountingSystem}.`}>
-      <Badge tone="warn">
-        <Database className="h-3 w-3" />
-        {compact ? "Not connected" : `Not connected · ${company.accountingSystem}`}
+    <Tip content={`Monthly pack from ${company.accountingSystem}, uploaded by Northbridge on the company's behalf. Consolidated lines as submitted.`}>
+      <Badge tone="outline">
+        <Upload className="h-3 w-3" />
+        {compact ? "Uploaded" : `Uploaded by Northbridge · ${company.accountingSystem}`}
       </Badge>
     </Tip>
   );
 }
 
 export function FreshnessDot({ company }: { company: Company }) {
-  const days = Math.round((Date.parse("2026-10-14") - Date.parse(company.lastUpdated)) / 86400000);
+  const days = Math.max(0, Math.round((Date.parse("2026-10-14") - Date.parse(company.lastUpdated)) / 86400000));
   const tone = days <= 2 ? "bg-pos" : days <= 14 ? "bg-info" : days <= 30 ? "bg-warn" : "bg-neg";
   const label = days === 0 ? (company.connection === "dualentry" ? "Synced today" : "Updated today") : `Updated ${days}d ago`;
   return (

@@ -30,9 +30,10 @@ describe("synthetic dataset", () => {
     expect(d.monthlyByCompany.get("apex-workforce")![30]).toBeUndefined();
     expect(d.monthlyByCompany.get("bluepeak-solutions")![32]).toBeUndefined();
   });
-  it("mixes DualEntry, external ERP and unconnected companies", () => {
+  it("has two connection types: DualEntry ledger shares and sponsor uploads", () => {
     const kinds = new Set(d.companies.map((c) => c.connection));
-    expect(kinds).toEqual(new Set(["dualentry", "upload", "not_connected"]));
+    expect(kinds).toEqual(new Set(["dualentry", "upload"]));
+    expect(d.companies.filter((c) => c.connection === "upload")).toHaveLength(8);
     // Entity ledgers only exist for DualEntry-connected companies.
     for (const [cid] of d.entityMonthlyByCompany) expect(d.companyById.get(cid)!.connection).toBe("dualentry");
   });

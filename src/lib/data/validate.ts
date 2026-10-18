@@ -131,6 +131,7 @@ export function validateDataset(d: IndexedDataset): ValidationReport {
   run("Entity ledgers reconcile to consolidated revenue and EBITDA", () => {
     let n = 0;
     for (const [cid, rows] of d.entityMonthlyByCompany) {
+      if (d.companyById.get(cid)?.entityShare === "partial") continue; // company shares only some entities
       const byM = new Map<number, { rev: number; ebitda: number; icR: number; icC: number }>();
       for (const r of rows) {
         const a = byM.get(r.month) ?? { rev: 0, ebitda: 0, icR: 0, icC: 0 };

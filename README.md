@@ -16,7 +16,9 @@ A fully interactive prototype of a sponsor-level portfolio financial monitoring,
 | **Cross-Portfolio Insights** | Deterministic insight engine (growth, profitability, cost efficiency, cash flow, reporting quality) with drill-down drawers; labor-vs-revenue spotlight; **Cost benchmarking** by sector, business model, fund, revenue band and vintage; **Ask Your Portfolio** natural-language analyst. |
 | **Company Comparison** | 2–5 companies side by side (KPI cards, trend, bars, difference table with notable deviations), or one company vs its peer cohort (rules, n, median/average, small-cohort and heterogeneity warnings). |
 | **Portfolio Companies** + **Company deep dive** | Header context (fund, investment date, ownership, ERP, entities, M&A), KPI strip, six charts, Income Statement / Cash Flow / Budget vs Actual / Operating KPIs / Entities tabs with monthly, quarterly and annual views and collapsible lines, cost composition, company insights, data-quality and drill-down depth. |
-| **Data Connections** | Connected vs upload depth comparison, connection inventory, 8-step onboarding wizard (company → method → permissions → information → mapping → validation → preview → confirm), finance-leader invitation, and an optional, consent-gated *Explore DualEntry for this company* request. |
+| **Data Connections** | Two connection types — *DualEntry · live* and *Uploaded by Northbridge*. Depth comparison (including sponsor effort), upload-effort panel, migration pipeline, inventory with upload and Explore actions, and **Add portfolio company**. |
+| **Adding companies & uploads** | *Add portfolio company*: on DualEntry → a data-share request the company approves in DualEntry ("company publishes, Northbridge subscribes": level of detail, entities, statements, closed months by default, hidden accounts, audience, preview as Northbridge, second approver for entity-level books). Not on DualEntry → Northbridge uploads the monthly pack: CSV template, example file, validation (control totals, duplicates, restatements with reason, swings without a note), preview, version history, and the honest limits of a file. |
+| **Explore DualEntry** | Per upload company: talking points for the operating partner's conversation with the CFO → log the outcome → *Introduce to DualEntry* only once interested → Outlook email to the CFO, CC the routed rep, with a unique link to that rep's intro-call calendar → stage updates when the CFO books. Northbridge sees stages only. |
 | **Reporting** | Quarterly operating summary, company comparison summary and cost insight summary — printable (Print / PDF) and exportable to CSV, respecting filters and labelled as synthetic. |
 
 Global header: fund, period type (quarter / YTD / TTM / FY), reporting period, comparison basis, industry, vintage, business model, geography, investment-date range, reset, USD indicator, ⌘K search, watchlist, methodology, demo user menu.
@@ -48,7 +50,7 @@ npm run typecheck    # TypeScript (strict)
 npm run lint         # ESLint, zero warnings allowed
 npm test             # Vitest: calculations, aggregation, data integrity, insights, query parser
 npm run build        # Next.js production build (all routes statically prerendered)
-npm run test:e2e     # Playwright: navigation, filters, exports, wizard, Ask, and the full 8-step demo
+npm run test:e2e     # Playwright: navigation, filters, exports, add company, upload, explore & booking, approval, Ask, and the full 8-step demo
 npm run verify       # typecheck + lint + unit tests + build
 ```
 
@@ -85,8 +87,9 @@ Or import the repository in the Vercel dashboard — framework preset *Next.js*,
 - Deliberate stories derived from parameters, never hard-coded insights: Meridian (labor outpacing revenue, margin pressure, add-on), Atlas (multi-entity SaaS), Beacon (accelerating growth and operating leverage), Horizon (slow growth, rising personnel cost, GBP reporting), Cedar (stable efficient), Summit (high margin, weak cash conversion, cost reclassification), Crestpoint (persistent budget misses), Northstar (recent acquisition with entity-level organic split), Harbor (tuck-in without organic data), Lattice (growth-stage SaaS), Apex (missing Q3 submission, stale), BluePeak (partial quarter, no labor split, no budget).
 
 **Prototype simulations** (functional UI, no external effects):
-- DualEntry ledger connections, uploads and invitations (the wizard validates fixture data and updates local state only; no email is sent).
-- The *Explore DualEntry* evaluation request (creates a local reference only; nothing is transmitted).
+- DualEntry data-share approvals and the intro-call booking page (`/approve/…`, `/book/…`) are simulated DualEntry pages, clearly labelled. The reps (Sarah Chen, Daniel Okafor) are fictional.
+- *Introduce to DualEntry* opens a `mailto:` draft in your mail client; the app itself sends nothing. Later migration stages (call held, evaluating, migrating, connected) are set with a labelled demo control — in production they would arrive from DualEntry.
+- Uploads are parsed and validated in the browser.
 - "Ask Your Portfolio" uses a local, rule-based interpreter — no LLM or API call. All figures come from the analytics engine.
 
 ---
@@ -98,7 +101,8 @@ Or import the repository in the Vercel dashboard — framework preset *Next.js*,
 - **Periods.** Portfolio views are calendar quarters (calendarised from monthly data, which is exact). FY 2026 is not selectable because it is incomplete; YTD 2026 is.
 - **Currency.** One non-USD company (GBP) with synthetic FX; budgets are translated at actual average rates (variance excludes FX). Constant-currency growth is not shown.
 - **Organic growth** is only computed where entity-level ledgers exist (DualEntry-connected companies); for uploaded data it is reported as unavailable, by design.
-- **Persistence.** Filters, period and Ask history persist per browser tab (`sessionStorage`); the watchlist persists in `localStorage`. There are no user accounts or server-side storage.
+- **Persistence.** Filters, period and Ask history persist per browser tab (`sessionStorage`); the watchlist persists in `localStorage`. Added companies, uploads, data-share approvals and migration stages are saved **in this browser only** (`localStorage`) — nobody else sees them, and there are no accounts or server storage. User menu → **Reset demo data** removes them.
+- **Added companies** are USD only, have no budget upload (budget vs actual is unavailable for them), and their history is synthesized from a template company of the same business model once data "arrives". Uploads cover monthly P&L, cash flow and headcount at consolidated level only.
 - **Responsive.** Designed for 1440 px desktop and verified at 1280 px and 1024 px; wide tables scroll horizontally. The left sidebar hides below 1024 px.
 
 See **[DEMO_SCRIPT.md](DEMO_SCRIPT.md)** for the live walkthrough and **[ARCHITECTURE.md](ARCHITECTURE.md)** for the design of the data model, engines and query layer.

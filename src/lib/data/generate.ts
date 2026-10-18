@@ -155,7 +155,7 @@ function cleanRevenue(p: StreamParams, origin: number, m: number): number {
   return p.base * idx * (p.subscription ? 1 + (p.servicesRatio ?? 0) * season : season);
 }
 
-function buildFx(): FxRate[] {
+export function buildFx(): FxRate[] {
   const noise = makeNoise("fx-gbp");
   const path: Path = [[0, 1.268], [6, 1.272], [10, 1.255], [14, 1.262], [18, 1.318], [24, 1.342], [28, 1.351], [32, 1.336]];
   const out: FxRate[] = [];
@@ -167,7 +167,7 @@ function buildFx(): FxRate[] {
   return out;
 }
 
-interface Built {
+export interface Built {
   company: Company;
   entities: Entity[];
   monthlyLocal: MonthlyFinancial[];
@@ -177,7 +177,7 @@ interface Built {
   transactions: Transaction[];
 }
 
-function buildCompany(seed: CompanySeed, gbp: Map<number, FxRate>): Built {
+export function buildCompany(seed: CompanySeed, gbp: Map<number, FxRate>): Built {
   const id = seed.master.id;
   const reportedThrough = seed.reportedThrough ?? LAST_MONTH;
   const company: Company = {
@@ -533,7 +533,7 @@ export function translateMonthly(rows: MonthlyFinancial[], fx: Map<string, FxRat
   });
 }
 
-function translateBudgets(rows: BudgetMonthly[], fx: Map<string, FxRate>): BudgetMonthly[] {
+export function translateBudgets(rows: BudgetMonthly[], fx: Map<string, FxRate>): BudgetMonthly[] {
   return rows.map((b) => {
     if (b.currency === "USD") return b;
     const rate = fx.get(`${b.currency}:${b.month}`)!.average;

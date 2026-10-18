@@ -59,3 +59,8 @@ export function range(a: number, b: number): number[] {
   for (let i = a; i <= b; i++) out.push(i);
   return out;
 }
+
+/** Label for a company's last reported month; "no data yet" when nothing has arrived. */
+export function lastReportedLabel(m: number): string {
+  return m < 0 ? "no data yet" : monthLabel(m);
+}

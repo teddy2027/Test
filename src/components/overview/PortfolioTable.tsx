@@ -175,7 +175,7 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
       accessorKey: "status",
       header: "Reporting",
       meta: { title: "Reporting status" },
-      cell: ({ row }) => <StatusPill status={row.original.a.current.status} months={row.original.a.current.monthsAvailable} expected={row.original.a.current.monthsExpected} />,
+      cell: ({ row }) => <StatusPill status={row.original.a.current.status} months={row.original.a.current.monthsAvailable} expected={row.original.a.current.monthsExpected} awaiting={row.original.a.company.lastReportedMonth < 0} />,
     },
   ];
 

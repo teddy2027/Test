@@ -309,7 +309,19 @@ export function EntityPanel({ company, period }: { company: Company; period: Per
         </p>
       </div>
     );
-  const agg = ents.map((e) => {
+  if (rows.length === 0)
+    return (
+      <div className="flex flex-col items-center gap-2 p-10 text-center" data-testid="entity-unavailable">
+        <Lock className="h-6 w-6 text-faint" />
+        <p className="text-sm font-medium text-ink">No entity-level books for {period.label}</p>
+        <p className="max-w-lg text-sm text-muted">
+          {company.dataSource.includes("migrated")
+            ? `${company.name} moved to DualEntry recently; entity-level books start with its first DualEntry close. Earlier periods were uploaded by Northbridge as consolidated figures.`
+            : `${company.name}'s sharing scope does not include entity-level books for this period. Only the company can change that, in DualEntry.`}
+        </p>
+      </div>
+    );
+  const agg = ents.filter((e) => rows.some((r) => r.entityId === e.id)).map((e) => {
     const r = rows.filter((x) => x.entityId === e.id);
     return {
       e,
@@ -326,7 +338,8 @@ export function EntityPanel({ company, period }: { company: Company; period: Per
   return (
     <div className="p-4" data-testid="entity-panel">
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-        <Badge tone="brand">DualEntry ledger</Badge> {ents.length} legal entities · {period.label} · intercompany eliminated automatically · reconciles to consolidated P&amp;L
+        <Badge tone="brand">DualEntry ledger</Badge> {agg.length} legal entities · {period.label} ·{" "}
+        {company.entityShare === "partial" ? "the company shares only these entities' books, so totals are not the consolidated figures" : "intercompany eliminated automatically · reconciles to consolidated P&L"}
       </div>
       <table className="w-full text-sm">
         <thead>
@@ -368,7 +381,7 @@ export function EntityPanel({ company, period }: { company: Company; period: Per
           </tr>
           <tr className="bg-subtle font-semibold">
             <td className="py-2" colSpan={3}>
-              Consolidated
+              {company.entityShare === "partial" ? "Total of shared entities" : "Consolidated"}
             </td>
             <td className="num py-2 text-right">{fmtUsd(totExt, { decimals: 2 })}</td>
             <td />

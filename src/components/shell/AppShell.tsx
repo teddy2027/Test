@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { hydrateApp, useApp } from "@/lib/state/store";
 import Loading from "@/app/loading";
 import { TooltipProvider } from "../ui/primitives";
@@ -10,6 +11,9 @@ import { Sidebar } from "./Sidebar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => hydrateApp(), []);
   const hydrated = useApp((s) => s.hydrated);
+  const path = usePathname();
+  // Simulated pages that belong to the CFO / DualEntry render without the sponsor's navigation.
+  if (path.startsWith("/book/") || path.startsWith("/approve/")) return <TooltipProvider delayDuration={150}>{hydrated ? children : <div className="p-8"><Loading /></div>}</TooltipProvider>;
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex min-h-screen">

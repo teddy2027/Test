@@ -10,6 +10,7 @@ import type { BusinessModel, FundId, Geography, Sector } from "@/lib/data/types"
 import { activeFilterCount } from "@/lib/engine/filters";
 import { selectableQuarters, selectableYears, type ComparisonBasis, type PeriodKind } from "@/lib/engine/periods";
 import { useApp } from "@/lib/state/store";
+import { useDataVersion, useWorkspace } from "@/lib/workspace/store";
 import { Badge, Button, MultiSelect, Popover, PopoverContent, PopoverTrigger, Select, Tip } from "../ui/primitives";
 
 const TITLES: [string, string][] = [
@@ -27,6 +28,7 @@ function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const rev = useDataVersion();
   const data = getData();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -56,7 +58,7 @@ function GlobalSearch() {
     const pg = pages.filter((p) => !term || p.label.toLowerCase().includes(term)).map((p) => ({ ...p, sub: "Page", kind: "page" as const }));
     return [...cos, ...pg].slice(0, 12);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [term]);
+  }, [term, rev]);
   const [idx, setIdx] = useState(0);
   const go = (href: string) => {
     setOpen(false);
@@ -121,6 +123,7 @@ function UserMenu() {
   const setWatchlistOpen = useApp((s) => s.setWatchlistOpen);
   const reset = useApp((s) => s.resetFilters);
   const clearChat = useApp((s) => s.clearChat);
+  const resetWorkspace = useWorkspace((s) => s.reset);
   return (
     <RDropdown.Root>
       <RDropdown.Trigger asChild>
@@ -144,11 +147,23 @@ function UserMenu() {
             { label: "Watchlist", icon: Star, on: () => setWatchlistOpen(true) },
             { label: "Methodology & definitions", icon: BookOpen, on: () => setMethodologyOpen(true) },
             {
-              label: "Reset demo state",
+              label: "Reset filters & chat",
               icon: RotateCcw,
               on: () => {
                 reset();
                 clearChat();
+              },
+            },
+            {
+              label: "Reset demo data (remove added companies, uploads)",
+              icon: RotateCcw,
+              on: () => {
+                if (window.confirm("Remove companies, uploads, introductions and data shares added in this browser, and restore the original demo portfolio?")) {
+                  resetWorkspace();
+                  reset();
+                  clearChat();
+                  window.location.assign("/");
+                }
               },
             },
           ].map((i) => (

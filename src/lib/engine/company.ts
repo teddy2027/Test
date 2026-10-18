@@ -279,11 +279,16 @@ export function budgetBlock(companyId: string, cur: CompanyPeriod, data: Indexed
 }
 
 const cache = new Map<string, CompanyAnalysis>();
+let cacheFor: IndexedDataset | null = null;
 
 /** Full analysis of one company for one period: current values, prior-period, year-over-year and budget comparisons. */
 export function analyzeCompany(companyId: string, p: Period, data: IndexedDataset = getData()): CompanyAnalysis {
   const key = `${companyId}:${p.kind}:${p.start}:${p.end}`;
-  if (data === getData() && cache.has(key)) return cache.get(key)!;
+  if (cacheFor !== data) {
+    cache.clear();
+    cacheFor = data;
+  }
+  if (cache.has(key)) return cache.get(key)!;
   const company = data.companyById.get(companyId);
   if (!company) throw new Error(`Unknown company ${companyId}`);
   const current = periodValues(companyId, p, data);
@@ -296,7 +301,7 @@ export function analyzeCompany(companyId: string, p: Period, data: IndexedDatase
     yoy: yp ? compare(company, current, yp, data) : null,
     budget: budgetBlock(companyId, current, data),
   };
-  if (data === getData()) cache.set(key, res);
+  cache.set(key, res);
   return res;
 }
 

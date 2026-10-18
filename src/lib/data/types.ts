@@ -34,7 +34,8 @@ export const BusinessModelSchema = z.enum([
 ]);
 export type BusinessModel = z.infer<typeof BusinessModelSchema>;
 
-export const ConnectionSchema = z.enum(["dualentry", "upload", "not_connected"]);
+/** "dualentry" = authorized ledger share; "upload" = monthly pack uploaded by the sponsor on the company's behalf. */
+export const ConnectionSchema = z.enum(["dualentry", "upload"]);
 export type ConnectionType = z.infer<typeof ConnectionSchema>;
 
 export const CurrencySchema = z.enum(["USD", "GBP"]);
@@ -66,7 +67,7 @@ export const EntitySchema = z.object({
 export type Entity = z.infer<typeof EntitySchema>;
 
 export const CompanySchema = z.object({
-  id: z.string().regex(/^[a-z-]+$/),
+  id: z.string().regex(/^[a-z0-9-]+$/),
   name: z.string(),
   fund: FundIdSchema,
   sector: SectorSchema,
@@ -86,10 +87,15 @@ export const CompanySchema = z.object({
   entityCount: z.number().int().positive(),
   dataSource: z.string(),
   lastUpdated: z.string(),
-  lastReportedMonth: z.number().int(),
+  /** Last month with data; −1 when no data has arrived yet. */
+  lastReportedMonth: z.number().int().min(-1),
   dataQuality: z.enum(["High", "Medium", "Low"]),
   hasArr: z.boolean(),
-  financeLead: z.object({ name: z.string(), title: z.string() }),
+  financeLead: z.object({ name: z.string(), title: z.string(), email: z.string() }),
+  /** True for companies added by the sponsor in this browser (not part of the generated demo portfolio). */
+  userAdded: z.boolean().optional(),
+  /** "partial" when the company shares only some legal entities' books (entity totals then differ from consolidated). */
+  entityShare: z.enum(["all", "partial"]).optional(),
   definitionNotes: z.array(z.object({ kind: z.enum(["definition", "context"]), text: z.string() })),
   missingFields: z.array(z.string()),
   closeDays: z.number().int().nullable(),
@@ -151,7 +157,8 @@ export type BudgetMonthly = z.infer<typeof BudgetMonthlySchema>;
 export const OperationalMonthlySchema = z.object({
   companyId: z.string(),
   month: z.number().int(),
-  employees: z.number().int().nonnegative(),
+  /** Period-end headcount; null when an uploaded pack does not report it. */
+  employees: z.number().int().nonnegative().nullable(),
   billableHeadcount: z.number().int().nullable(),
   utilization: nullableNum,
   arr: nullableNum,

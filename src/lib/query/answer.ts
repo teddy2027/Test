@@ -5,7 +5,7 @@
  * anything the engine cannot compute is reported as unavailable.
  */
 import { getData } from "../data";
-import { monthLabel } from "../data/calendar";
+import { lastReportedLabel } from "../data/calendar";
 import type { Company } from "../data/types";
 import { mean, median, safeDiv, type N } from "../engine/core";
 import { analyzeCompany, type CompanyAnalysis } from "../engine/company";
@@ -137,7 +137,7 @@ function exclusionNotes(as: CompanyAnalysis[], needs: (a: CompanyAnalysis) => st
 }
 
 function curReason(a: CompanyAnalysis): string | null {
-  if (a.current.status === "missing") return `no data for ${a.current.period.label} (last reported ${monthLabel(a.company.lastReportedMonth)})`;
+  if (a.current.status === "missing") return `no data for ${a.current.period.label} (last reported ${lastReportedLabel(a.company.lastReportedMonth)})`;
   if (a.current.status === "partial") return `partial period (${a.current.monthsAvailable} of ${a.current.monthsExpected} months)`;
   return null;
 }
@@ -936,7 +936,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
       if (curReason(a))
         return {
           ...base,
-          headline: `${a.company.name} has ${curReason(a)} for ${period.label}. Its most recent data covers ${monthLabel(a.company.lastReportedMonth)}.`,
+          headline: `${a.company.name} has ${curReason(a)} for ${period.label}. Its most recent data covers ${lastReportedLabel(a.company.lastReportedMonth)}.`,
           kpis: [],
           columns: [],
           rows: [],
@@ -972,7 +972,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         label: a.company.name,
         values: {
           status: a.current.status === "complete" ? "Complete" : a.current.status === "partial" ? `Partial (${a.current.monthsAvailable}/${a.current.monthsExpected})` : "Missing",
-          last: monthLabel(a.company.lastReportedMonth),
+          last: lastReportedLabel(a.company.lastReportedMonth),
           source: a.company.connection === "dualentry" ? "DualEntry (live)" : a.company.connection === "upload" ? `Upload · ${a.company.accountingSystem}` : `Not connected · ${a.company.accountingSystem}`,
           budget: a.budget.status === "complete" ? "Yes" : "No",
         },

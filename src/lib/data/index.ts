@@ -1,4 +1,6 @@
 import { generateDataset } from "./generate";
+import { applyWorkspace, isEmptyWorkspace } from "../workspace/overlay";
+import type { Workspace } from "../workspace/types";
 import type { BudgetMonthly, Company, Dataset, Entity, EntityMonthly, MonthlyFinancial, OperationalMonthly, Transaction } from "./types";
 
 export * from "./types";
@@ -48,9 +50,30 @@ export function indexDataset(d: Dataset): IndexedDataset {
   };
 }
 
+let base: Dataset | null = null;
 let cached: IndexedDataset | null = null;
-/** The single, deterministic dataset instance shared by every view. */
+let overlay: Workspace | null = null;
+let version = 0;
+
+/** Sets the sponsor's workspace (added companies, uploads, data shares). Invalidates the dataset. */
+export function setWorkspace(ws: Workspace | null) {
+  overlay = ws && !isEmptyWorkspace(ws) ? ws : null;
+  cached = null;
+  version++;
+}
+
+export function dataVersion(): number {
+  return version;
+}
+
+/** The generated demo portfolio without any workspace changes. */
+export function getBaseDataset(): Dataset {
+  if (!base) base = generateDataset();
+  return base;
+}
+
+/** The single dataset instance shared by every view: generated portfolio + the sponsor's workspace. */
 export function getData(): IndexedDataset {
-  if (!cached) cached = indexDataset(generateDataset());
+  if (!cached) cached = indexDataset(overlay ? applyWorkspace(getBaseDataset(), overlay) : getBaseDataset());
   return cached;
 }

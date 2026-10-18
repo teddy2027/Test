@@ -124,40 +124,126 @@ test.describe("Portfolio Intelligence", () => {
     await expect(page.getByTestId("chat-turn")).toHaveCount(3);
   });
 
-  test("Data Connections onboarding wizard and DualEntry exploration", async ({ page }) => {
+  test("Data Connections: two connection types, effort, pipeline and depth comparison", async ({ page }) => {
+    const errors = await trackErrors(page);
     await page.goto("/connections");
     await expect(page.getByTestId("depth-compare")).toContainText("organic");
-    await page.getByTestId("invite-apex-workforce").click();
-    const wizard = page.getByTestId("wizard");
-    await expect(wizard).toBeVisible();
-    for (let i = 0; i < 7; i++) await page.getByTestId("wizard-next").click();
-    await expect(page.getByTestId("confirm-summary")).toContainText("Apex Workforce");
-    await page.getByTestId("wizard-confirm").click();
-    await expect(page.getByTestId("wizard-success")).toBeVisible();
-    await page.getByRole("button", { name: "Done" }).click();
-    await expect(page.getByTestId("conn-row-apex-workforce")).toContainText("Invitation prepared");
-
-    await page.getByTestId("explore-meridian-services").click();
-    await expect(page.getByTestId("explore-form")).toContainText("Commercial interest is kept separate");
-    await page.getByRole("button", { name: /Context \+ summary financials/ }).click();
-    await expect(page.getByTestId("explore-submit")).toBeDisabled();
-    await page.getByRole("button", { name: /Context only/ }).click();
-    await page.getByTestId("explore-submit").click();
-    await expect(page.getByTestId("explore-success")).toContainText("No information has been sent");
+    await expect(page.getByTestId("depth-compare")).toContainText("Sponsor effort");
+    await expect(page.getByTestId("effort-panel")).toBeVisible();
+    await expect(page.getByTestId("pipeline-panel")).toContainText("Harbor Operations");
+    await expect(page.getByText("Uploaded by Northbridge").first()).toBeVisible();
+    expect(errors).toEqual([]);
   });
 
-  test("upload wizard validates mappings in response to user changes", async ({ page }) => {
+  test("sponsor upload: example file validates, previews and completes the quarter", async ({ page }) => {
+    const errors = await trackErrors(page);
+    await page.goto("/");
+    await expect(page.getByTestId("kpi-reporting-value")).toHaveText("10 / 12");
     await page.goto("/connections");
-    await page.getByTestId("open-wizard").click();
-    await page.getByRole("radio", { name: /Crestpoint Consulting/ }).check();
-    for (let i = 0; i < 4; i++) await page.getByTestId("wizard-next").click();
-    await expect(page.getByTestId("mapping-table")).toBeVisible();
-    await page.getByTestId("wizard-next").click();
-    await expect(page.getByTestId("validation-results")).toContainText("1 unmapped");
-    await page.getByRole("button", { name: "Back" }).click();
-    await page.getByLabel("Map Transaction Costs (one-off)").selectOption("Exclude (non-operating)");
-    await page.getByTestId("wizard-next").click();
-    await expect(page.getByTestId("validation-results")).not.toContainText("unmapped");
+    await page.getByTestId("upload-apex-workforce").click();
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-example").click()]);
+    await page.getByTestId("upload-input").setInputFiles((await dl.path())!);
+    await expect(page.getByTestId("upload-results")).toBeVisible();
+    await expect(page.getByTestId("upload-preview")).toBeVisible();
+    await page.getByTestId("accept-upload").click();
+    await expect(page.getByTestId("upload-success")).toBeVisible();
+    await page.goto("/");
+    await expect(page.getByTestId("kpi-reporting-value")).toHaveText("11 / 12");
+    expect(errors).toEqual([]);
+  });
+
+  test("upload rejects a file with broken control totals", async ({ page }) => {
+    await page.goto("/companies/apex-workforce");
+    await page.getByTestId("open-upload").click();
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-example").click()]);
+    const csv = readFileSync((await dl.path())!, "utf8").replace(/^(TOTAL_REVENUE,[^,\n]*,)(\d+)/m, (_m, a, n) => `${a}${Number(n) + 5000}`);
+    await page.getByTestId("upload-input").setInputFiles({ name: "broken.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await expect(page.getByTestId("upload-issues")).toContainText(/total/i);
+    await expect(page.getByTestId("accept-upload")).toBeDisabled();
+  });
+
+  test("add an upload company: awaiting data until the first pack", async ({ page }) => {
+    const errors = await trackErrors(page);
+    await page.goto("/connections");
+    await page.getByTestId("add-company").click();
+    await page.getByTestId("add-name").fill("Orbit Facility Group");
+    await page.getByTestId("add-cfo-name").fill("Maya Lind");
+    await page.getByTestId("add-cfo-email").fill("maya.lind@orbit.example");
+    await page.getByTestId("path-upload").click();
+    await page.getByTestId("add-submit").click();
+    await expect(page.getByTestId("company-name")).toHaveText("Orbit Facility Group");
+    await expect(page.getByTestId("onboarding-banner")).toBeVisible();
+    await expect(page.getByTestId("awaiting-data")).toBeVisible();
+    await expect(page.getByText("Awaiting data").first()).toBeVisible();
+    await page.getByTestId("open-upload").click();
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-example").click()]);
+    await page.getByTestId("upload-input").setInputFiles((await dl.path())!);
+    await page.getByTestId("accept-upload").click();
+    await expect(page.getByTestId("upload-success")).toBeVisible();
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("awaiting-data")).toHaveCount(0);
+    await expect(page.getByTestId("company-kpis")).toBeVisible();
+    await page.goto("/");
+    expect(await tableRowCount(page)).toBe(13);
+    expect(errors).toEqual([]);
+  });
+
+  test("add a DualEntry company: company approves scope, then data goes live", async ({ page }) => {
+    const errors = await trackErrors(page);
+    await page.goto("/companies");
+    await page.getByTestId("add-company").click();
+    await page.getByTestId("add-name").fill("Vega Ledger Cloud");
+    await page.getByTestId("add-cfo-name").fill("Tom Reyes");
+    await page.getByTestId("add-cfo-email").fill("tom.reyes@vega.example");
+    await page.getByTestId("path-dualentry").click();
+    await page.getByTestId("add-submit").click();
+    await expect(page.getByTestId("share-pending")).toBeVisible();
+    await page.getByTestId("open-approval").click();
+    await expect(page.getByTestId("approval-page")).toBeVisible();
+    await expect(page.getByTestId("approve-share")).toBeDisabled();
+    await page.getByTestId("confirm-relationship").check();
+    await page.getByTestId("gran-entity").check();
+    await expect(page.getByTestId("approve-share")).toBeDisabled(); // second approver required
+    await page.getByTestId("second-approver").fill("Ana Ortiz");
+    await page.getByTestId("approve-share").click();
+    await expect(page.getByTestId("approval-done")).toContainText("active");
+    await page.getByRole("link", { name: /Northbridge.s side/ }).click();
+    await expect(page.getByTestId("company-name")).toHaveText("Vega Ledger Cloud");
+    await expect(page.getByTestId("company-kpis")).toBeVisible();
+    await expect(page.getByTestId("share-panel")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("Explore DualEntry: discuss, introduce, CFO books, status updates", async ({ page }) => {
+    const errors = await trackErrors(page);
+    await page.goto("/companies/meridian-services");
+    await page.getByTestId("explore-dualentry").click();
+    const panel = page.getByTestId("explore-panel");
+    await expect(panel.getByTestId("talking-points")).toBeVisible();
+    await expect(panel.getByTestId("introduce")).toHaveCount(0); // never cold
+    await panel.getByTestId("outcome-interested").click();
+    await panel.getByTestId("introduce").click();
+    const dialog = page.getByTestId("introduce-dialog");
+    await expect(page.getByTestId("intro-body")).toHaveValue(/\/book\/[a-z0-9]+/);
+    await expect(page.getByTestId("open-outlook")).toHaveAttribute("href", /^mailto:/);
+    await dialog.getByTestId("mark-sent").click();
+    await expect(panel).toContainText("Introduced");
+    await panel.getByTestId("booking-link").click();
+    await expect(page.getByTestId("booking-page")).toContainText("Meridian Services");
+    await page.getByTestId("slot").first().click();
+    await page.getByTestId("confirm-booking").click();
+    await expect(page.getByTestId("booking-confirmed")).toBeVisible();
+    await page.goto("/companies/meridian-services");
+    await expect(page.getByTestId("booking-status")).toBeVisible();
+    await expect(page.getByTestId("migration-timeline")).toContainText(/booked/i);
+    await page.getByTestId("advance-call_held").click();
+    await expect(page.getByTestId("migration-timeline")).toContainText(/held/i);
+    expect(errors).toEqual([]);
+  });
+
+  test("invalid booking link is handled", async ({ page }) => {
+    await page.goto("/book/doesnotexist");
+    await expect(page.getByTestId("booking-invalid")).toBeVisible();
   });
 
   test("reporting views export CSV", async ({ page }) => {

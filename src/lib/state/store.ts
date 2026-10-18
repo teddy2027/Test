@@ -6,6 +6,7 @@ import { DEFAULT_SELECTION, type ComparisonBasis, type PeriodSelection } from ".
 import type { AggregationMode } from "../engine/portfolio";
 import type { Answer } from "../query/answer";
 import type { ParsedQuery } from "../query/parser";
+import { useWorkspace } from "../workspace/store";
 
 export interface ChatTurn {
   id: string;
@@ -86,9 +87,9 @@ const WATCH_KEY = "de-portfolio-intelligence-watchlist";
 /** Hydrates session state and the (longer-lived) watchlist, then keeps the watchlist in localStorage. */
 export function hydrateApp(): () => void {
   const done = () => useApp.setState({ hydrated: true });
-  const r = useApp.persist.rehydrate();
-  if (r && typeof (r as Promise<void>).then === "function") (r as Promise<void>).then(done, done);
-  else done();
+  // Workspace first (companies, uploads, shares feed the dataset), then session state.
+  const both = Promise.all([Promise.resolve(useWorkspace.persist.rehydrate()), Promise.resolve(useApp.persist.rehydrate())]);
+  both.then(done, done);
   try {
     const raw = localStorage.getItem(WATCH_KEY);
     if (raw) {

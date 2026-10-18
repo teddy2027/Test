@@ -6,6 +6,7 @@ import { Building2, ChevronDown, ChevronRight, Columns3, FileText, LayoutDashboa
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import { useApp } from "@/lib/state/store";
+import { useDataVersion } from "@/lib/workspace/store";
 
 const NAV = [
   { href: "/", label: "Portfolio Overview", icon: LayoutDashboard },
@@ -32,6 +33,7 @@ export function Wordmark() {
 
 export function Sidebar() {
   const path = usePathname();
+  useDataVersion(); // re-render when companies are added
   const data = getData();
   const [open, setOpen] = useState(true);
   const watch = useApp((s) => s.watchlist);
@@ -87,7 +89,7 @@ export function Sidebar() {
                         <span
                           className={cn(
                             "h-1.5 w-1.5 shrink-0 rounded-full",
-                            c.connection === "dualentry" ? "bg-[#7aa7ff]" : c.connection === "upload" ? "bg-side-muted" : "bg-[#e0a43a]",
+                            c.lastReportedMonth < 0 ? "bg-[#e0a43a]" : c.connection === "dualentry" ? "bg-[#7aa7ff]" : "bg-side-muted",
                           )}
                           aria-label={c.connection}
                         />
@@ -99,9 +101,9 @@ export function Sidebar() {
               </div>
             ))}
             <div className="mt-1 space-y-1 px-2.5 text-[10.5px] text-side-muted">
-              <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#7aa7ff]" /> DualEntry connected</div>
-              <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-side-muted" /> Standardized upload</div>
-              <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#e0a43a]" /> Not connected</div>
+              <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#7aa7ff]" /> DualEntry · live</div>
+              <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-side-muted" /> Uploaded by Northbridge</div>
+              <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[#e0a43a]" /> Awaiting data</div>
             </div>
           </div>
         )}

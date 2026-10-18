@@ -64,11 +64,19 @@ test("eight-step live demo", async ({ page }) => {
   await expect(depth).toContainText("Meridian Services");
   await expect(depth).toContainText(/organic vs \+23\.\d% reported/);
   await expect(depth).toContainText("Not determinable");
+  await expect(depth).toContainText("Sponsor effort");
   await page.getByTestId("explore-from-connections").click();
-  await expect(page.getByTestId("explore-form")).toBeVisible();
-  await page.getByTestId("explore-submit").click();
-  await expect(page.getByTestId("explore-success")).toBeVisible();
-  await page.getByRole("button", { name: "Done" }).click();
+  const panel = page.getByTestId("explore-panel");
+  await expect(panel.getByTestId("talking-points")).toBeVisible();
+  await panel.getByTestId("outcome-interested").click();
+  await panel.getByTestId("introduce").click();
+  await page.getByTestId("mark-sent").click();
+  await panel.getByTestId("booking-link").click();
+  await page.getByTestId("slot").first().click();
+  await page.getByTestId("confirm-booking").click();
+  await expect(page.getByTestId("booking-confirmed")).toBeVisible();
+  await page.getByRole("link", { name: "Back to Portfolio Intelligence" }).click();
+  await expect(page.getByTestId("pipeline-panel")).toContainText("Meridian Services");
 
   // Step 8 — Back to the Overview: filters and figures remain consistent
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Portfolio Overview" }).click();

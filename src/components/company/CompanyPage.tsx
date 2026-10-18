@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { notFound } from "next/navigation";
-import { ArrowLeft, Check, Columns3, GitMerge, Rocket, X } from "lucide-react";
+import { notFound, useSearchParams } from "next/navigation";
+import { ArrowDown, ArrowLeft, Check, CheckCircle2, Columns3, GitMerge, Rocket, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
-import { monthLabel } from "@/lib/data/calendar";
+import { lastReportedLabel } from "@/lib/data/calendar";
 import type { Company } from "@/lib/data/types";
 import { analyzeCompany, type CompanyAnalysis } from "@/lib/engine/company";
 import { detectCompanyInsights, type Insight } from "@/lib/engine/insights";
@@ -17,7 +17,10 @@ import { SeriesChart, SERIES_HEX } from "../charts/charts";
 import { ConnectionBadge, Delta, FreshnessDot, QualityBadge, StatusPill, WatchButton } from "../fin/fin";
 import { InsightDrawer } from "../insights/InsightDrawer";
 import { InsightCard } from "../insights/InsightFeed";
-import { ExploreDualEntryDialog } from "../connections/ExploreDialog";
+import { UploadDialog } from "../uploads/UploadDialog";
+import { ExplorePanel, SharePanel, UploadsPanel } from "./DataPanels";
+import { STAGE_LABEL } from "@/lib/workspace/migration";
+import { useWorkspace } from "@/lib/workspace/store";
 import { Badge, Button, CardHeader, MetricLabel } from "../ui/primitives";
 import { Statements } from "./Statements";
 
@@ -165,10 +168,10 @@ function DataQuality({ company, a }: { company: Company; a: CompanyAnalysis }) {
           {formatDateTime(company.lastUpdated)} <FreshnessDot company={company} />
         </dd>
         <dt className="text-muted">Data through</dt>
-        <dd className="text-ink-2">{monthLabel(company.lastReportedMonth)}</dd>
+        <dd className="text-ink-2">{lastReportedLabel(company.lastReportedMonth)}</dd>
         <dt className="text-muted">Period status</dt>
         <dd>
-          <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} />
+          <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} awaiting={company.lastReportedMonth < 0} />
         </dd>
         <dt className="text-muted">Budget coverage</dt>
         <dd className="text-ink-2">{a.budget.status === "complete" ? `Complete for ${a.current.period.label}${a.budget.cfo === null ? " (no cash-flow budget)" : ""}` : "No budget for period"}</dd>
@@ -203,7 +206,9 @@ export function CompanyPage({ id }: { id: string }) {
   const { period, basis, companies, data } = useScope();
   const company = data.companyById.get(id);
   const [openInsight, setOpenInsight] = useState<Insight | null>(null);
-  const [explore, setExplore] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const params = useSearchParams();
+  const migration = useWorkspace((s) => s.migration[id]);
   const a = useMemo(() => (company ? analyzeCompany(company.id, period) : null), [company, period]);
   const series = useMemo(() => (company ? companyQuarterly(company.id, period.end, 11) : []), [company, period.end]);
   const insights = useMemo(() => (company && a ? detectCompanyInsights(a, companies.length ? companies : data.companies, period) : []), [company, a, companies, data.companies, period]);
@@ -237,7 +242,7 @@ export function CompanyPage({ id }: { id: string }) {
                 {company.name}
               </h1>
               <ConnectionBadge company={company} />
-              <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} />
+              <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} awaiting={company.lastReportedMonth < 0} />
               <QualityBadge q={company.dataQuality} />
             </div>
             <p className="mt-1 max-w-3xl text-sm text-muted">{company.description}</p>
@@ -248,10 +253,10 @@ export function CompanyPage({ id }: { id: string }) {
                 <Columns3 className="h-3.5 w-3.5" /> Compare with peers
               </Button>
             </Link>
-            {company.connection !== "dualentry" && (
-              <Button variant="subtle" onClick={() => setExplore(true)} data-testid="explore-dualentry">
-                <Rocket className="h-3.5 w-3.5" /> Explore DualEntry for this company
-              </Button>
+            {company.connection === "upload" && (
+              <a href="#explore" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand/15 bg-brand-soft px-3 text-sm font-medium text-brand-ink hover:bg-brand-soft/70" data-testid="explore-dualentry">
+                <Rocket className="h-3.5 w-3.5" /> Explore DualEntry · {STAGE_LABEL[migration?.stage ?? "not_started"]} <ArrowDown className="h-3 w-3" />
+              </a>
             )}
           </div>
         </div>
@@ -265,8 +270,8 @@ export function CompanyPage({ id }: { id: string }) {
             ["Ownership", `${company.ownership} · ${company.ownershipPct}%`],
             ["Finance system", company.accountingSystem],
             ["Legal entities", String(company.entityCount)],
-            ["Reporting status", a.current.status === "complete" ? `Complete · ${period.label}` : a.current.status === "partial" ? `Partial · ${period.label}` : `Missing · ${period.label}`],
-            ["Last reported period", monthLabel(company.lastReportedMonth)],
+            ["Reporting status", company.lastReportedMonth < 0 ? "Awaiting first data" : a.current.status === "complete" ? `Complete · ${period.label}` : a.current.status === "partial" ? `Partial · ${period.label}` : `Missing · ${period.label}`],
+            ["Last reported period", lastReportedLabel(company.lastReportedMonth)],
           ].map(([k, v]) => (
             <div key={k} className="min-w-0">
               <div className="text-[11px] text-muted">{k}</div>
@@ -291,10 +296,32 @@ export function CompanyPage({ id }: { id: string }) {
         )}
       </div>
 
+      {params.get("onboarding") === "1" && company.userAdded && (
+        <div className="flex items-start gap-2 rounded-lg border border-pos/30 bg-pos-soft/60 px-5 py-3 text-sm text-ink-2" data-testid="onboarding-banner">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-pos" />
+          <span>
+            <span className="font-semibold text-ink">{company.name} added to the portfolio.</span>{" "}
+            {company.connection === "dualentry"
+              ? `A data-sharing request was sent to ${company.financeLead.name}. Figures appear once the company approves the scope in DualEntry.`
+              : "Next: download the template and upload the first monthly pack below."}
+          </span>
+        </div>
+      )}
+
+      {company.lastReportedMonth < 0 ? (
+        <>
+          {company.connection === "dualentry" ? <SharePanel company={company} /> : <UploadsPanel company={company} onUpload={() => setUploadOpen(true)} />}
+          {company.connection === "upload" && <ExplorePanel company={company} />}
+          <div className="rounded-lg border border-line bg-surface px-5 py-8 text-center text-sm text-muted" data-testid="awaiting-data">
+            Financial views, insights and benchmarks for {company.name} appear here as soon as the first figures arrive. Until then it is counted in the portfolio as “awaiting data” and left out of totals.
+          </div>
+        </>
+      ) : (
+        <>
       {/* KPI strip */}
       {a.current.status !== "complete" ? (
         <div className="rounded-lg border border-warn/30 bg-warn-soft/40 px-5 py-4 text-sm text-ink-2" data-testid="company-incomplete">
-          <span className="font-semibold text-ink">{period.label} data is {a.current.status === "missing" ? "missing" : "incomplete"}.</span> {company.name} has reported through {monthLabel(company.lastReportedMonth)}. Period metrics are not computed from partial data — select an earlier period in the filter bar or view trends below.
+          <span className="font-semibold text-ink">{period.label} data is {a.current.status === "missing" ? "missing" : "incomplete"}.</span> {company.name} has reported through {lastReportedLabel(company.lastReportedMonth)}. Period metrics are not computed from partial data — select an earlier period in the filter bar or view trends below.
         </div>
       ) : (
         <div className="grid grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface shadow-card sm:grid-cols-4 2xl:grid-cols-8 2xl:divide-y-0" data-testid="company-kpis">
@@ -345,6 +372,15 @@ export function CompanyPage({ id }: { id: string }) {
 
       <Statements company={company} period={period} current={a} />
 
+      {company.connection === "upload" ? (
+        <>
+          <UploadsPanel company={company} onUpload={() => setUploadOpen(true)} />
+          <ExplorePanel company={company} />
+        </>
+      ) : (
+        <SharePanel company={company} />
+      )}
+
       <div className="rounded-lg border border-line bg-surface shadow-card" data-testid="company-insights">
         <CardHeader title="Company insights" description={`${insights.length} findings for ${period.label} from the insight engine · click to inspect supporting calculations`} />
         <div className="grid gap-3 p-3 lg:grid-cols-2 2xl:grid-cols-3">
@@ -365,8 +401,10 @@ export function CompanyPage({ id }: { id: string }) {
           <DataQuality company={company} a={a} />
         </div>
       </div>
+        </>
+      )}
       <InsightDrawer insight={openInsight} onClose={() => setOpenInsight(null)} />
-      <ExploreDualEntryDialog company={company} open={explore} onOpenChange={setExplore} />
+      {company.connection === "upload" && <UploadDialog company={company} open={uploadOpen} onOpenChange={setUploadOpen} />}
     </div>
   );
 }

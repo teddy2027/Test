@@ -5,7 +5,7 @@
  * configurable threshold is crossed. Findings describe observed differences —
  * possible explanations are framed as hypotheses to investigate, never as causes.
  */
-import { DEMO_TODAY, monthLabel } from "../data/calendar";
+import { DEMO_TODAY, lastReportedLabel, monthLabel } from "../data/calendar";
 import { getData, type IndexedDataset } from "../data";
 import type { Company } from "../data/types";
 import { ppChange, safeDiv, type N } from "./core";
@@ -111,6 +111,25 @@ export function detectCompanyInsights(a: CompanyAnalysis, universe: Company[], p
     out.push({ ...i, id: `${i.rule}:${c.id}:${p.label}`, companyId: c.id, companyName: c.name, period: p.label });
 
   // ---------------- Reporting quality (evaluated even without current data) ----------------
+  if (a.current.status !== "complete" && c.lastReportedMonth < 0) {
+    push({
+      rule: "awaiting_first_data",
+      category: "Reporting Quality",
+      severity: "medium",
+      title: "Awaiting first data",
+      finding:
+        c.connection === "dualentry"
+          ? `${c.name} was added to the portfolio; the data-sharing request is awaiting the company's approval in DualEntry.`
+          : `${c.name} was added to the portfolio; no monthly pack has been uploaded yet.`,
+      comparison: "",
+      figures: [],
+      explanations: c.connection === "dualentry" ? ["Company reviewing the requested scope"] : ["First pack not yet received from the company", "Upload pending on the Northbridge side"],
+      caveats: [],
+      chartMetrics: ["revenue"],
+      magnitude: 1,
+    });
+    return out;
+  }
   if (a.current.status !== "complete") {
     const missing = a.current.status === "missing";
     push({
@@ -119,8 +138,8 @@ export function detectCompanyInsights(a: CompanyAnalysis, universe: Company[], p
       severity: missing ? "high" : "medium",
       title: missing ? "No financial submission for the period" : "Incomplete submission for the period",
       finding: missing
-        ? `${c.name} has not submitted financials for ${p.label}. Last reported month: ${monthLabel(c.lastReportedMonth)}. The company is excluded from portfolio totals and like-for-like comparisons for this period.`
-        : `${c.name} submitted ${a.current.monthsAvailable} of ${a.current.monthsExpected} months for ${p.label} (through ${monthLabel(c.lastReportedMonth)}). Period totals are not computed from partial data; the company is excluded from period aggregates.`,
+        ? `${c.name} has not submitted financials for ${p.label}. Last reported month: ${lastReportedLabel(c.lastReportedMonth)}. The company is excluded from portfolio totals and like-for-like comparisons for this period.`
+        : `${c.name} submitted ${a.current.monthsAvailable} of ${a.current.monthsExpected} months for ${p.label} (through ${lastReportedLabel(c.lastReportedMonth)}). Period totals are not computed from partial data; the company is excluded from period aggregates.`,
       comparison: "",
       figures: [
         { label: "Months received", value: a.current.monthsAvailable, format: "count" },

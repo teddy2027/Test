@@ -8,13 +8,16 @@ import { fmtPct, fmtUsd, formatDate } from "@/lib/format";
 import { useScope } from "@/lib/state/hooks";
 import { ConnectionBadge, Delta, FreshnessDot, Sparkline, StatusPill, WatchButton } from "../fin/fin";
 import { PageHeader } from "../overview/OverviewPage";
-import { Segmented } from "../ui/primitives";
+import { Button, Segmented } from "../ui/primitives";
+import { Plus } from "lucide-react";
+import { AddCompanyDialog } from "./AddCompanyDialog";
 
 type Group = "fund" | "sector" | "connection";
 
 export function CompaniesPage() {
   const { companies, period, data } = useScope();
   const [group, setGroup] = useState<Group>("fund");
+  const [add, setAdd] = useState(false);
   const items = useMemo(
     () =>
       companies.map((c) => ({
@@ -25,11 +28,14 @@ export function CompaniesPage() {
     [companies, period],
   );
   const keyOf = (c: (typeof companies)[number]) =>
-    group === "fund" ? data.funds.find((f) => f.id === c.fund)!.name : group === "sector" ? c.sector : c.connection === "dualentry" ? "DualEntry connected" : c.connection === "upload" ? "Standardized upload" : "Not connected";
+    group === "fund" ? data.funds.find((f) => f.id === c.fund)!.name : group === "sector" ? c.sector : c.lastReportedMonth < 0 ? "Awaiting data" : c.connection === "dualentry" ? "DualEntry · live" : "Uploaded by Northbridge";
   const groups = [...new Set(items.map((i) => keyOf(i.c)))];
   return (
     <div>
       <PageHeader title="Portfolio Companies" subtitle={`${companies.length} companies · ${period.label} · fictional companies and synthetic data`}>
+        <Button variant="primary" onClick={() => setAdd(true)} data-testid="add-company">
+          <Plus className="h-3.5 w-3.5" /> Add portfolio company
+        </Button>
         <Segmented<Group>
           ariaLabel="Group companies by"
           value={group}
@@ -82,7 +88,7 @@ export function CompaniesPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line pt-2.5">
                     <ConnectionBadge company={c} compact />
-                    <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} />
+                    <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} awaiting={c.lastReportedMonth < 0} />
                     {(a.yoy?.acquisitions.length ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5 rounded bg-warn-soft px-1 text-[10px] font-medium text-warn">
                         <GitMerge className="h-2.5 w-2.5" /> M&A
@@ -97,6 +103,7 @@ export function CompaniesPage() {
           </div>
         </section>
       ))}
+      <AddCompanyDialog open={add} onOpenChange={setAdd} />
       {companies.length === 0 && <p className="rounded-lg border border-line bg-surface p-10 text-center text-sm text-muted">No companies match the current filters.</p>}
     </div>
   );

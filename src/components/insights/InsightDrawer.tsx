@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { ArrowRight, Columns3, Database, ExternalLink, Lightbulb, ShieldAlert } from "lucide-react";
 import { getData } from "@/lib/data";
-import { monthLabel } from "@/lib/data/calendar";
+import { lastReportedLabel } from "@/lib/data/calendar";
 import { analyzeCompany } from "@/lib/engine/company";
 import { benchmarkMetric, buildBenchmark } from "@/lib/engine/benchmark";
 import type { Insight } from "@/lib/engine/insights";
@@ -268,7 +268,7 @@ function DrawerBody({ insight, universe, onClose }: { insight: Insight; universe
           <dt className="text-muted">Last refreshed</dt>
           <dd className="text-ink-2">{formatDateTime(c.lastUpdated)}</dd>
           <dt className="text-muted">Data through</dt>
-          <dd className="text-ink-2">{monthLabel(c.lastReportedMonth)}</dd>
+          <dd className="text-ink-2">{lastReportedLabel(c.lastReportedMonth)}</dd>
           <dt className="text-muted">Analysis period</dt>
           <dd className="text-ink-2">
             {insight.period}
