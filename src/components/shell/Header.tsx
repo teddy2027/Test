@@ -158,7 +158,7 @@ function UserMenu() {
               label: "Reset demo data (remove added companies, uploads)",
               icon: RotateCcw,
               on: () => {
-                if (window.confirm("Remove companies, uploads, introductions and data shares added in this browser, and restore the original demo portfolio?")) {
+                if (window.confirm("Remove companies, uploads, DualEntry invites and data shares added in this browser, and restore the original demo portfolio?")) {
                   resetWorkspace();
                   reset();
                   clearChat();

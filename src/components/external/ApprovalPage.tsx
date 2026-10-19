@@ -10,7 +10,7 @@ import { useWorkspace } from "@/lib/workspace/store";
 import { entityNamesFor } from "@/lib/workspace/synth";
 import type { Granularity, ShareScope } from "@/lib/workspace/types";
 import { Button } from "../ui/primitives";
-import { ExternalFrame } from "./BookingPage";
+import { ExternalFrame } from "./ExternalFrame";
 
 const HIDDEN_DEFAULT = ["Individual payroll & compensation", "Legal settlements", "M&A advisory costs", "Owner / related-party transactions"];
 const AUDIENCES = ["Operating partners", "Fund finance", "Deal team", "Portfolio ops analysts"];

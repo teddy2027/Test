@@ -248,11 +248,13 @@ export function CompanyPage({ id }: { id: string }) {
             <p className="mt-1 max-w-3xl text-sm text-muted">{company.description}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/compare?subject=${company.id}`}>
-              <Button>
-                <Columns3 className="h-3.5 w-3.5" /> Compare with peers
-              </Button>
-            </Link>
+            {company.lastReportedMonth >= 0 && (
+              <Link href={`/compare?subject=${company.id}`} data-testid="compare-peers">
+                <Button>
+                  <Columns3 className="h-3.5 w-3.5" /> Compare with peers
+                </Button>
+              </Link>
+            )}
             {company.connection === "upload" && (
               <a href="#explore" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand/15 bg-brand-soft px-3 text-sm font-medium text-brand-ink hover:bg-brand-soft/70" data-testid="explore-dualentry">
                 <Rocket className="h-3.5 w-3.5" /> Explore DualEntry · {STAGE_LABEL[migration?.stage ?? "not_started"]} <ArrowDown className="h-3 w-3" />

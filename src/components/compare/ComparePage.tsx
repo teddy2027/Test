@@ -71,28 +71,32 @@ export function ComparePage() {
   const gb = basis === "prior" ? "prior" : "yoy";
   const subjectParam = params.get("subject");
   const idsParam = params.get("ids");
+  // Companies still awaiting their first figures can't be compared yet.
+  const comparable = useMemo(() => data.companies.filter((c) => c.lastReportedMonth >= 0), [data.companies]);
+  const canCompare = (id: string | null): id is string => !!id && (data.companyById.get(id)?.lastReportedMonth ?? -1) >= 0;
   const [mode, setMode] = useState<Mode>(subjectParam ? "cohort" : "companies");
-  const [ids, setIds] = useState<string[]>(() => (idsParam ? idsParam.split(",").filter((i) => data.companyById.has(i)) : ["meridian-services", "harbor-operations", "summit-compliance"]));
+  const [ids, setIds] = useState<string[]>(() => (idsParam ? idsParam.split(",").filter(canCompare) : ["meridian-services", "harbor-operations", "summit-compliance"]));
   const [slots, setSlots] = useState<Record<string, number>>(() => Object.fromEntries(ids.map((id, i) => [id, i])));
-  const [subject, setSubject] = useState<string>(subjectParam && data.companyById.has(subjectParam) ? subjectParam : "meridian-services");
+  const [subject, setSubject] = useState<string>(canCompare(subjectParam) ? subjectParam : "meridian-services");
   const [dim, setDim] = useState<CohortDimension>("sector");
   const [groups, setGroups] = useState<CompareMetric["group"][]>(["Growth", "Profitability", "Cost efficiency", "Cash flow", "Budget"]);
   const [trendKey, setTrendKey] = useState("ebitdaMargin");
   const [barKey, setBarKey] = useState("laborIntensity");
 
   useEffect(() => {
-    if (subjectParam && data.companyById.has(subjectParam)) {
+    if (canCompare(subjectParam)) {
       setSubject(subjectParam);
       setMode("cohort");
     }
     if (idsParam) {
-      const next = idsParam.split(",").filter((i) => data.companyById.has(i));
+      const next = idsParam.split(",").filter(canCompare);
       if (next.length) {
         setIds(next);
         setSlots(Object.fromEntries(next.map((id, i) => [id, i])));
         setMode("companies");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canCompare only reads data.companyById
   }, [subjectParam, idsParam, data.companyById]);
 
   const syncUrl = (patch: Record<string, string | null>) => {
@@ -118,7 +122,7 @@ export function ComparePage() {
     syncUrl({ ids: next.join(",") || null });
   };
 
-  const universe = companies.length ? companies : data.companies;
+  const universe = (companies.length ? companies : data.companies).filter((c) => c.lastReportedMonth >= 0);
   const analyses = useMemo(() => ids.map((id) => analyzeCompany(id, period)), [ids, period]);
   const metrics = COMPARE_METRICS.filter((m) => groups.includes(m.group));
   const colorOf = (id: string) => SERIES_HEX[(slots[id] ?? 0) % SERIES_HEX.length];
@@ -181,12 +185,12 @@ export function ComparePage() {
                 </button>
               </span>
             ))}
-            <CompanyPicker all={data.companies} selected={ids} onAdd={addId} />
+            <CompanyPicker all={comparable} selected={ids} onAdd={addId} />
             <span className="text-xs text-muted">2–5 companies</span>
           </>
         ) : (
           <>
-            <Select ariaLabel="Subject company" prefix="Company" value={subject} onChange={(v) => { setSubject(v); syncUrl({ subject: v, ids: null }); }} options={data.companies.map((c) => ({ value: c.id, label: c.name }))} />
+            <Select ariaLabel="Subject company" prefix="Company" value={subject} onChange={(v) => { setSubject(v); syncUrl({ subject: v, ids: null }); }} options={comparable.map((c) => ({ value: c.id, label: c.name }))} />
             <Select
               ariaLabel="Peer cohort"
               prefix="Peers by"

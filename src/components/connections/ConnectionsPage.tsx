@@ -74,7 +74,7 @@ function DepthCompare({ connected, external }: { connected: Company; external: C
   );
 }
 
-const PIPELINE: MigrationStage[] = ["not_started", "discussed", "introduced", "call_booked", "call_held", "evaluating", "migrating", "connected", "declined"];
+const PIPELINE: MigrationStage[] = ["not_started", "introduced", "call_booked", "call_held", "evaluating", "migrating", "connected", "declined"];
 
 export function ConnectionsPage() {
   const { period, data } = useScope();
@@ -96,6 +96,7 @@ export function ConnectionsPage() {
   const pipelineCos = data.companies.filter((c) => c.connection === "upload" || ws.migration[c.id]);
   const stageOf = (id: string) => (ws.migration[id] ?? emptyMigration(id)).stage;
   const counts = PIPELINE.map((s) => ({ s, n: pipelineCos.filter((c) => stageOf(c.id) === s).length })).filter((x) => x.n > 0);
+  const sandboxes = pipelineCos.filter((c) => ws.migration[c.id]?.sandbox).length;
 
   return (
     <div className="space-y-4">
@@ -153,7 +154,7 @@ export function ConnectionsPage() {
                 <Rocket className="h-4 w-4 text-brand" /> Explore DualEntry — portfolio pipeline
               </span>
             }
-            description="Where each upload company stands. Conversations happen between the operating partner and the CFO; Northbridge sees stages only."
+            description="Where each upload company stands after its DualEntry invite. Northbridge sees milestones only."
           />
           <div className="flex flex-wrap gap-2 px-4 py-3" data-testid="pipeline-summary">
             {counts.map(({ s, n }) => (
@@ -161,6 +162,11 @@ export function ConnectionsPage() {
                 <span className="num font-semibold text-ink">{n}</span> <span className="text-muted">{STAGE_LABEL[s].toLowerCase()}</span>
               </span>
             ))}
+            {sandboxes > 0 && (
+              <span className="rounded-md border border-brand/20 bg-brand-soft/50 px-2 py-1 text-xs">
+                <span className="num font-semibold text-ink">{sandboxes}</span> <span className="text-muted">opened the sandbox</span>
+              </span>
+            )}
           </div>
           <div className="border-t border-line px-4 py-2">
             {pipelineCos
@@ -170,7 +176,8 @@ export function ConnectionsPage() {
                   <span className="text-ink">{c.name}</span>
                   <span className="text-xs text-muted">
                     {STAGE_LABEL[stageOf(c.id)]}
-                    {ws.migration[c.id]?.booking && stageOf(c.id) === "call_booked" ? ` · ${new Date(`${ws.migration[c.id]!.booking!.slot}:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}` : ""} <ArrowRight className="inline h-3 w-3" />
+                    {ws.migration[c.id]?.booking && stageOf(c.id) === "call_booked" ? ` · ${new Date(`${ws.migration[c.id]!.booking!.slot}:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}` : ""}
+                    {ws.migration[c.id]?.sandbox ? " · sandbox" : ""} <ArrowRight className="inline h-3 w-3" />
                   </span>
                 </Link>
               ))}

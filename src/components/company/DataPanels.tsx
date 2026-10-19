@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, Check, CheckCircle2, Clock, Copy, ExternalLink, FileUp, Lock, Mail, MessageSquare, Plug, Rocket, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, CalendarCheck, Check, CheckCircle2, Clock, ExternalLink, FileUp, FlaskConical, Lock, Mail, Plug, Rocket, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import { monthLabel } from "@/lib/data/calendar";
@@ -14,6 +14,7 @@ import {
   EFFORT,
   effortSummary,
   emptyMigration,
+  LINK_VALID_DAYS,
   linkExpiry,
   newToken,
   packEvents,
@@ -25,7 +26,7 @@ import {
   WHAT_CHANGES,
 } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
-import type { DiscussionOutcome, MigrationStage } from "@/lib/workspace/types";
+import type { MigrationStage } from "@/lib/workspace/types";
 import { Badge, Button, CardHeader, Dialog, Tip } from "../ui/primitives";
 
 // ---------------------------------------------------------------- uploads
@@ -122,9 +123,10 @@ export function UploadsPanel({ company, onUpload }: { company: Company; onUpload
 
 // ---------------------------------------------------------------- explore DualEntry
 
-const TRACK: MigrationStage[] = ["discussed", "introduced", "call_booked", "call_held", "evaluating", "migrating", "connected"];
+const TRACK: MigrationStage[] = ["introduced", "call_booked", "call_held", "evaluating", "migrating", "connected"];
+const fmtSlot = (slot: string) => new Date(`${slot}:00Z`).toLocaleString("en-US", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 
-function StageTrack({ stage }: { stage: MigrationStage }) {
+function StageTrack({ stage, sandbox }: { stage: MigrationStage; sandbox: boolean }) {
   const idx = STAGE_ORDER.indexOf(stage);
   return (
     <ol className="flex flex-wrap items-center gap-1 text-[11px]" aria-label="Migration stage">
@@ -138,7 +140,8 @@ function StageTrack({ stage }: { stage: MigrationStage }) {
           </li>
         );
       })}
-      {stage === "declined" && <Badge tone="neutral">Declined</Badge>}
+      {sandbox && <Badge tone="brand">Sandbox opened</Badge>}
+      {stage === "declined" && <Badge tone="neutral">CFO: not now</Badge>}
     </ol>
   );
 }
@@ -147,18 +150,12 @@ export function ExplorePanel({ company }: { company: Company }) {
   const ws = useWorkspace();
   const m = ws.migration[company.id] ?? emptyMigration(company.id);
   const data = getData();
-  const [note, setNote] = useState("");
-  const [intro, setIntro] = useState(false);
+  const [invite, setInvite] = useState(false);
   const ttm = useMemo(() => analyzeCompany(company.id, makePeriod("ttm", 21, 32)).current.metrics.revenue, [company.id]);
   const a = analyzeCompany(company.id, makePeriod("quarter", 30, 32));
   const points = talkingPoints(company, data, ws, a.yoy ? { reported: a.yoy.revenueGrowth, affected: a.yoy.acquisitions.length > 0 } : null);
   const rep = repById(m.repId);
-  const canDiscuss = m.stage === "not_started" || (m.stage === "discussed" && m.outcome !== "interested") || m.stage === "declined";
-  const linkPath = m.token ? `/book/${m.token}` : null;
-  const outcome = (o: DiscussionOutcome) => {
-    ws.setOutcome(company.id, o, note.trim());
-    setNote("");
-  };
+  const linkPath = m.token ? `/invite/${m.token}` : null;
 
   return (
     <div className="rounded-lg border border-line bg-surface shadow-card" data-testid="explore-panel" id="explore">
@@ -168,16 +165,20 @@ export function ExplorePanel({ company }: { company: Company }) {
             <Rocket className="h-4 w-4 text-brand" /> Explore DualEntry
           </span>
         }
-        description="Prepare the conversation with the CFO, then introduce them to DualEntry if they're interested. Sponsor-only view."
-        actions={<Badge tone={m.stage === "not_started" ? "neutral" : m.stage === "declined" ? "neutral" : "brand"}>{m.stage === "discussed" && m.outcome ? `Discussed — ${m.outcome === "interested" ? "interested" : m.outcome === "wants_info" ? "wants info" : "not now"}` : STAGE_LABEL[m.stage]}</Badge>}
+        description={
+          m.stage === "not_started"
+            ? `Send ${company.financeLead.name} an invite from here: one link to book a demo with the right DualEntry rep and to try a sandbox. Northbridge sees progress only.`
+            : `Invite sent to ${company.financeLead.name}. Progress updates here as the CFO books a demo, opens the sandbox and moves forward with DualEntry.`
+        }
+        actions={<Badge tone={m.stage === "not_started" || m.stage === "declined" ? "neutral" : "brand"}>{STAGE_LABEL[m.stage]}</Badge>}
       />
       <div className="space-y-4 p-4">
-        <StageTrack stage={m.stage} />
+        {m.stage !== "not_started" && <StageTrack stage={m.stage} sandbox={!!m.sandbox} />}
 
-        {(m.stage === "not_started" || m.stage === "discussed" || m.stage === "declined") && (
+        {m.stage === "not_started" ? (
           <div className="grid gap-4 lg:grid-cols-2">
             <div>
-              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Talking points for {company.financeLead.name}</div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Why it&apos;s worth it for {company.name}</div>
               <ul className="space-y-1.5 text-sm" data-testid="talking-points">
                 {points.map((p) => (
                   <li key={p.label}>
@@ -194,46 +195,30 @@ export function ExplorePanel({ company }: { company: Company }) {
                 ))}
               </ul>
               <p className="mt-2 flex items-center gap-1 text-[11px] text-muted">
-                <Lock className="h-3 w-3" /> Built from data Northbridge already has. Nothing is shared with DualEntry at this stage.
+                <Lock className="h-3 w-3" /> Built from data Northbridge already has. None of it goes into the invite or to DualEntry.
               </p>
             </div>
-            <div className="rounded-md border border-line bg-subtle/50 p-3">
-              {canDiscuss ? (
-                <>
-                  <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
-                    <MessageSquare className="h-4 w-4 text-muted" /> After you&apos;ve discussed it with the CFO
-                  </div>
-                  <p className="mb-2 text-xs text-muted">Record the outcome. An introduction is only possible once the CFO is interested — nothing reaches the CFO cold.</p>
-                  <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note, e.g. wants to see multi-entity close" className="mb-2 h-8 w-full rounded-md border border-line-strong px-2.5 text-sm focus:outline-none" />
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="primary" onClick={() => outcome("interested")} data-testid="outcome-interested">
-                      Interested
-                    </Button>
-                    <Button size="sm" onClick={() => outcome("wants_info")}>
-                      Wants more information
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => outcome("not_now")}>
-                      Not now
-                    </Button>
-                  </div>
-                  {m.stage === "discussed" && m.outcome !== "interested" && <p className="mt-2 text-xs text-muted">Last outcome: {m.outcome === "wants_info" ? "wants more information" : "not now"}. You can log a new conversation any time.</p>}
-                </>
-              ) : (
-                <>
-                  <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
-                    <CheckCircle2 className="h-4 w-4 text-pos" /> {company.financeLead.name} is interested
-                  </div>
-                  <p className="mb-3 text-xs text-muted">Introduce them to the right DualEntry representative. The email opens in Outlook from your own address, with a unique booking link.</p>
-                  <Button variant="primary" onClick={() => setIntro(true)} data-testid="introduce">
-                    <Mail className="h-3.5 w-3.5" /> Introduce to DualEntry
-                  </Button>
-                </>
-              )}
+            <div className="rounded-md border border-line bg-subtle/50 p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
+                <Mail className="h-4 w-4 text-muted" /> Invite {company.financeLead.name}
+              </div>
+              <p className="mb-3 text-sm text-ink-2">
+                Portfolio Intelligence emails {company.financeLead.name.split(" ")[0]} in your name, copying the DualEntry rep. The email carries one unique link where they can:
+              </p>
+              <ul className="mb-4 space-y-1.5 text-sm text-ink-2">
+                <li className="flex gap-2">
+                  <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand" /> <span><span className="font-medium text-ink">Book a demo</span> on the right rep&apos;s calendar</span>
+                </li>
+                <li className="flex gap-2">
+                  <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-brand" /> <span><span className="font-medium text-ink">Open a sandbox</span>: DualEntry with sample data, to try on their own</span>
+                </li>
+              </ul>
+              <Button variant="primary" onClick={() => setInvite(true)} data-testid="send-invite">
+                <Mail className="h-3.5 w-3.5" /> Send DualEntry invite
+              </Button>
             </div>
           </div>
-        )}
-
-        {m.token && m.stage !== "not_started" && m.stage !== "discussed" && (
+        ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2 text-sm">
               {rep && (
@@ -247,20 +232,32 @@ export function ExplorePanel({ company }: { company: Company }) {
                   </span>
                 </div>
               )}
-              {m.booking && (
-                <div className="rounded-md bg-pos-soft px-3 py-2 text-pos" data-testid="booking-status">
-                  Intro call: {new Date(`${m.booking.slot}:00Z`).toLocaleString("en-US", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} · booked by {m.booking.name}
-                </div>
-              )}
+              <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5 rounded-md border border-line p-2.5">
+                <dt className="text-muted">Invite</dt>
+                <dd className="text-ink-2">Sent {formatDate(m.introducedAt!)} to {company.financeLead.email}</dd>
+                <dt className="text-muted">Demo</dt>
+                <dd data-testid="booking-status" className={m.booking ? "font-medium text-pos" : "text-muted"}>
+                  {m.booking ? `${fmtSlot(m.booking.slot)} · booked by ${m.booking.name}` : "Not booked yet"}
+                </dd>
+                <dt className="text-muted">Sandbox</dt>
+                <dd data-testid="sandbox-status" className={m.sandbox ? "font-medium text-pos" : "text-muted"}>
+                  {m.sandbox ? `Opened ${formatDate(m.sandbox.at)} by ${m.sandbox.name}` : "Not opened yet"}
+                </dd>
+              </dl>
               {linkPath && (
-                <div className="text-xs text-muted">
-                  Booking link (unique to this introduction, valid until {formatDate(linkExpiry(m.introducedAt!))}):{" "}
-                  <Link href={linkPath} className="inline-flex items-center gap-1 font-medium text-brand hover:underline" data-testid="booking-link">
-                    open the CFO&apos;s view (simulated) <ExternalLink className="h-3 w-3" />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                  <span>Link valid until {formatDate(linkExpiry(m.introducedAt!))}.</span>
+                  <Link href={linkPath} className="inline-flex items-center gap-1 font-medium text-brand hover:underline" data-testid="invite-link">
+                    Open the CFO&apos;s view (simulated) <ExternalLink className="h-3 w-3" />
                   </Link>
+                  {!["connected", "migrating"].includes(m.stage) && (
+                    <button className="font-medium text-brand hover:underline" onClick={() => setInvite(true)} data-testid="resend-invite">
+                      Resend invite
+                    </button>
+                  )}
                 </div>
               )}
-              <p className="text-[11px] text-muted">Northbridge sees the stage only — never the content of DualEntry&apos;s conversations with the company.</p>
+              <p className="text-[11px] text-muted">Northbridge sees these milestones only — never the content of the CFO&apos;s conversations with DualEntry or what they do in the sandbox.</p>
             </div>
             <div>
               <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Timeline</div>
@@ -283,9 +280,6 @@ export function ExplorePanel({ company }: { company: Company }) {
                         {STAGE_LABEL[s]}
                       </Button>
                     ))}
-                    <Button size="xs" variant="ghost" onClick={() => ws.advance(company.id, "declined")}>
-                      Declined
-                    </Button>
                   </div>
                 </div>
               )}
@@ -295,7 +289,7 @@ export function ExplorePanel({ company }: { company: Company }) {
 
         {m.stage === "connected" && <MigratedShareCta company={company} />}
       </div>
-      {intro && <IntroduceDialog company={company} ttm={ttm} onClose={() => setIntro(false)} />}
+      {invite && <InviteDialog company={company} ttm={ttm} resend={m.token !== null} onClose={() => setInvite(false)} />}
     </div>
   );
 }
@@ -322,74 +316,96 @@ function MigratedShareCta({ company }: { company: Company }) {
   );
 }
 
-function IntroduceDialog({ company, ttm, onClose }: { company: Company; ttm: number | null; onClose: () => void }) {
-  const introduce = useWorkspace((s) => s.introduce);
+function InviteDialog({ company, ttm, resend, onClose }: { company: Company; ttm: number | null; resend: boolean; onClose: () => void }) {
+  const sendInvite = useWorkspace((s) => s.sendInvite);
   const [token] = useState(() => newToken());
   const { rep, reason } = routeRep(company, ttm);
-  const link = `${typeof window !== "undefined" ? window.location.origin : ""}/book/${token}`;
   const first = company.financeLead.name.split(" ")[0];
-  const [subject, setSubject] = useState(`Introduction: ${company.name} <> DualEntry`);
-  const [body, setBody] = useState(
-    `Hi ${first},\n\nAs discussed, I'd like to introduce you to ${rep.name} at DualEntry (copied), who works with Northbridge's portfolio companies.\n\nFrom our side, the appeal is a faster close${company.entityCount > 1 ? `, consolidating your ${company.entityCount} entities in one ledger` : ""} and no more monthly reporting packs to send us — your figures would publish to Northbridge automatically when you close, within the scope you approve.\n\nYou can pick a time for a 30-minute intro call with ${rep.name.split(" ")[0]} here:\n${link}\n\nBest,\nAlex Morgan\nOperating Partner, Northbridge Equity Partners`,
+  const repFirst = rep.name.split(" ")[0];
+  const [subject, setSubject] = useState(`${company.name}: explore DualEntry — book a demo or try the sandbox`);
+  const [note, setNote] = useState(
+    `Hi ${first},\n\nFollowing our conversation, here's the DualEntry link. ${repFirst} (copied) works with Northbridge's portfolio companies. From our side the appeal is a faster close${company.entityCount > 1 ? `, your ${company.entityCount} entities in one ledger` : ""} and no more monthly packs to send us — figures would publish to Northbridge at each close, within the scope you approve.\n\nBest,\nAlex`,
   );
-  const [copied, setCopied] = useState(false);
-  const mailto = `mailto:${encodeURIComponent(company.financeLead.email)}?cc=${encodeURIComponent(rep.email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const [sent, setSent] = useState(false);
   return (
-    <Dialog open onOpenChange={(v) => !v && onClose()} title={`Introduce ${company.name} to DualEntry`} description="Review the email, open it in Outlook, send it from your address, then mark it as sent." className="w-[min(760px,calc(100vw-32px))]">
-      <div className="space-y-4" data-testid="introduce-dialog">
-        <div className="flex items-center gap-3 rounded-md border border-line p-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-ink">{rep.name.split(" ").map((x) => x[0]).join("")}</span>
-          <div className="text-sm">
-            <div className="font-medium text-ink">
-              {rep.name} <span className="font-normal text-muted">· {rep.title} (fictional)</span>
-            </div>
-            <div className="text-xs text-muted">Routing: {reason}</div>
-          </div>
-        </div>
-        <dl className="grid grid-cols-[60px_1fr] gap-x-3 gap-y-2 text-sm">
-          <dt className="pt-1.5 text-muted">To</dt>
-          <dd className="pt-1.5 text-ink">
-            {company.financeLead.name} &lt;{company.financeLead.email}&gt;
-          </dd>
-          <dt className="pt-1.5 text-muted">Cc</dt>
-          <dd className="pt-1.5 text-ink">
-            {rep.name} &lt;{rep.email}&gt;
-          </dd>
-          <dt className="pt-1.5 text-muted">Subject</dt>
-          <dd>
-            <input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-8 w-full rounded-md border border-line-strong px-2.5 text-sm focus:outline-none" />
-          </dd>
-        </dl>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} className="w-full rounded-md border border-line-strong p-3 text-sm leading-relaxed focus:outline-none" data-testid="intro-body" />
-        <div className="flex items-start gap-1.5 text-xs text-muted">
-          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> The link carries only a random code. The booking page shows the company name, Northbridge as introducer and {rep.name.split(" ")[0]}&apos;s calendar — no financial data.
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
-          <div className="flex gap-2">
-            <a href={mailto} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink shadow-card hover:bg-subtle" data-testid="open-outlook">
-              <Mail className="h-3.5 w-3.5" /> Open in Outlook
-            </a>
-            <Button
-              onClick={() => {
-                void navigator.clipboard?.writeText(`To: ${company.financeLead.email}\nCc: ${rep.email}\nSubject: ${subject}\n\n${body}`);
-                setCopied(true);
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy email"}
-            </Button>
-          </div>
-          <Button
-            variant="primary"
-            data-testid="mark-sent"
-            onClick={() => {
-              introduce(company.id, rep.id, token);
-              onClose();
-            }}
-          >
-            <Check className="h-3.5 w-3.5" /> Mark as sent
+    <Dialog open onOpenChange={(v) => !v && onClose()} title={`${resend ? "Resend" : "Send"} DualEntry invite to ${company.financeLead.name}`} description="Sent from Portfolio Intelligence in your name. Edit your note; the links are added automatically." className="w-[min(760px,calc(100vw-32px))]">
+      {sent ? (
+        <div className="flex flex-col items-center gap-2 py-8 text-center" data-testid="invite-sent">
+          <CheckCircle2 className="h-9 w-9 text-pos" />
+          <p className="font-semibold text-ink">Invite sent to {company.financeLead.name}</p>
+          <p className="max-w-md text-sm text-muted">
+            {rep.name} is copied. You&apos;ll see here when {first} books a demo or opens the sandbox. (Prototype: no email actually leaves the app — use “Open the CFO&apos;s view” to play the CFO.)
+          </p>
+          <Button variant="primary" className="mt-2" onClick={onClose}>
+            Done
           </Button>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-4" data-testid="invite-dialog">
+          <div className="flex items-center gap-3 rounded-md border border-line p-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-ink">{rep.name.split(" ").map((x) => x[0]).join("")}</span>
+            <div className="text-sm">
+              <div className="font-medium text-ink">
+                {rep.name} <span className="font-normal text-muted">· {rep.title} (fictional)</span>
+              </div>
+              <div className="text-xs text-muted">Routing: {reason}</div>
+            </div>
+          </div>
+          <dl className="grid grid-cols-[70px_1fr] gap-x-3 gap-y-2 text-sm">
+            <dt className="text-muted">From</dt>
+            <dd className="text-ink">Alex Morgan, Northbridge Equity Partners <span className="text-muted">via Portfolio Intelligence · replies go to alex.morgan@northbridge.example</span></dd>
+            <dt className="text-muted">To</dt>
+            <dd className="text-ink">
+              {company.financeLead.name} &lt;{company.financeLead.email}&gt;
+            </dd>
+            <dt className="text-muted">Cc</dt>
+            <dd className="text-ink">
+              {rep.name} &lt;{rep.email}&gt;
+            </dd>
+            <dt className="pt-1.5 text-muted">Subject</dt>
+            <dd>
+              <input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-8 w-full rounded-md border border-line-strong px-2.5 text-sm focus:outline-none" />
+            </dd>
+          </dl>
+          <div className="overflow-hidden rounded-md border border-line-strong">
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={9} aria-label="Your note" className="block w-full border-0 p-3 text-sm leading-relaxed focus:outline-none" data-testid="invite-note" />
+            <div className="border-t border-line bg-subtle/60 p-3 text-sm" data-testid="invite-preview">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Added automatically</div>
+              <div className="rounded-md border border-line bg-surface p-3">
+                <div className="font-medium text-ink">Explore DualEntry for {company.name}</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white">
+                    <CalendarCheck className="h-3.5 w-3.5" /> Book a demo with {repFirst}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink">
+                    <FlaskConical className="h-3.5 w-3.5" /> Open a sandbox
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] text-muted">Both open one link unique to {company.name}, valid {LINK_VALID_DAYS} days. The sandbox uses sample data — none of {company.name}&apos;s figures.</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-start gap-1.5 text-xs text-muted">
+            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> The link carries only a random code. The page shows the company name, Northbridge as the introducer and {repFirst}&apos;s calendar — no financial data.
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-line pt-3">
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              data-testid="send-invite-confirm"
+              disabled={!subject.trim()}
+              onClick={() => {
+                sendInvite(company.id, rep.id, token, rep.name);
+                setSent(true);
+              }}
+            >
+              <Mail className="h-3.5 w-3.5" /> Send invite
+            </Button>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }

@@ -175,6 +175,7 @@ test.describe("Portfolio Intelligence", () => {
     await expect(page.getByTestId("onboarding-banner")).toBeVisible();
     await expect(page.getByTestId("awaiting-data")).toBeVisible();
     await expect(page.getByText("Awaiting data").first()).toBeVisible();
+    await expect(page.getByTestId("compare-peers")).toHaveCount(0); // nothing to compare until the first upload
     await page.getByTestId("open-upload").click();
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-example").click()]);
     await page.getByTestId("upload-input").setInputFiles((await dl.path())!);
@@ -183,6 +184,7 @@ test.describe("Portfolio Intelligence", () => {
     await page.getByRole("button", { name: "Done" }).click();
     await expect(page.getByTestId("awaiting-data")).toHaveCount(0);
     await expect(page.getByTestId("company-kpis")).toBeVisible();
+    await expect(page.getByTestId("compare-peers")).toBeVisible();
     await page.goto("/");
     expect(await tableRowCount(page)).toBe(13);
     expect(errors).toEqual([]);
@@ -214,36 +216,52 @@ test.describe("Portfolio Intelligence", () => {
     expect(errors).toEqual([]);
   });
 
-  test("Explore DualEntry: discuss, introduce, CFO books, status updates", async ({ page }) => {
+  test("Explore DualEntry: send invite, CFO books a demo and opens the sandbox, status updates", async ({ page }) => {
     const errors = await trackErrors(page);
     await page.goto("/companies/meridian-services");
     await page.getByTestId("explore-dualentry").click();
     const panel = page.getByTestId("explore-panel");
     await expect(panel.getByTestId("talking-points")).toBeVisible();
-    await expect(panel.getByTestId("introduce")).toHaveCount(0); // never cold
-    await panel.getByTestId("outcome-interested").click();
-    await panel.getByTestId("introduce").click();
-    const dialog = page.getByTestId("introduce-dialog");
-    await expect(page.getByTestId("intro-body")).toHaveValue(/\/book\/[a-z0-9]+/);
-    await expect(page.getByTestId("open-outlook")).toHaveAttribute("href", /^mailto:/);
-    await dialog.getByTestId("mark-sent").click();
-    await expect(panel).toContainText("Introduced");
-    await panel.getByTestId("booking-link").click();
-    await expect(page.getByTestId("booking-page")).toContainText("Meridian Services");
+    await panel.getByTestId("send-invite").click();
+    await expect(page.getByTestId("invite-dialog")).toContainText("Daniel Okafor");
+    await expect(page.getByTestId("invite-preview")).toContainText("Book a demo with Daniel");
+    await expect(page.getByTestId("invite-preview")).toContainText("Open a sandbox");
+    await page.getByTestId("send-invite-confirm").click();
+    await expect(page.getByTestId("invite-sent")).toBeVisible();
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(panel.getByTestId("booking-status")).toHaveText("Not booked yet");
+    await expect(panel.getByTestId("sandbox-status")).toHaveText("Not opened yet");
+
+    await panel.getByTestId("invite-link").click();
+    await expect(page.getByTestId("invite-page")).toContainText("Meridian Services");
+    await page.getByTestId("open-sandbox").click();
+    await expect(page.getByTestId("sandbox-ready")).toBeVisible();
     await page.getByTestId("slot").first().click();
     await page.getByTestId("confirm-booking").click();
     await expect(page.getByTestId("booking-confirmed")).toBeVisible();
+
     await page.goto("/companies/meridian-services");
-    await expect(page.getByTestId("booking-status")).toBeVisible();
-    await expect(page.getByTestId("migration-timeline")).toContainText(/booked/i);
+    await expect(page.getByTestId("booking-status")).toContainText("booked by");
+    await expect(page.getByTestId("sandbox-status")).toContainText("Opened");
+    await expect(page.getByTestId("migration-timeline")).toContainText("Sandbox opened");
     await page.getByTestId("advance-call_held").click();
-    await expect(page.getByTestId("migration-timeline")).toContainText(/held/i);
+    await expect(page.getByTestId("migration-timeline")).toContainText("Demo held");
+    await page.goto("/connections");
+    await expect(page.getByTestId("pipeline-summary")).toContainText("opened the sandbox");
     expect(errors).toEqual([]);
   });
 
-  test("invalid booking link is handled", async ({ page }) => {
-    await page.goto("/book/doesnotexist");
-    await expect(page.getByTestId("booking-invalid")).toBeVisible();
+  test("CFO can decline from the invite page", async ({ page }) => {
+    await page.goto("/invite/sm4q9t2b7kx8"); // Summit: invite sent, no response yet
+    await page.getByTestId("not-now").click();
+    await expect(page.getByTestId("not-now-done")).toBeVisible();
+    await page.goto("/companies/summit-compliance");
+    await expect(page.getByTestId("migration-timeline")).toContainText("Not now");
+  });
+
+  test("invalid invite link is handled", async ({ page }) => {
+    await page.goto("/invite/doesnotexist");
+    await expect(page.getByTestId("invite-invalid")).toBeVisible();
   });
 
   test("reporting views export CSV", async ({ page }) => {

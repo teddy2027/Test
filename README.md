@@ -18,7 +18,7 @@ A fully interactive prototype of a sponsor-level portfolio financial monitoring,
 | **Portfolio Companies** + **Company deep dive** | Header context (fund, investment date, ownership, ERP, entities, M&A), KPI strip, six charts, Income Statement / Cash Flow / Budget vs Actual / Operating KPIs / Entities tabs with monthly, quarterly and annual views and collapsible lines, cost composition, company insights, data-quality and drill-down depth. |
 | **Data Connections** | Two connection types — *DualEntry · live* and *Uploaded by Northbridge*. Depth comparison (including sponsor effort), upload-effort panel, migration pipeline, inventory with upload and Explore actions, and **Add portfolio company**. |
 | **Adding companies & uploads** | *Add portfolio company*: on DualEntry → a data-share request the company approves in DualEntry ("company publishes, Northbridge subscribes": level of detail, entities, statements, closed months by default, hidden accounts, audience, preview as Northbridge, second approver for entity-level books). Not on DualEntry → Northbridge uploads the monthly pack: CSV template, example file, validation (control totals, duplicates, restatements with reason, swings without a note), preview, version history, and the honest limits of a file. |
-| **Explore DualEntry** | Per upload company: talking points for the operating partner's conversation with the CFO → log the outcome → *Introduce to DualEntry* only once interested → Outlook email to the CFO, CC the routed rep, with a unique link to that rep's intro-call calendar → stage updates when the CFO books. Northbridge sees stages only. |
+| **Explore DualEntry** | Per upload company: why it's worth it for that company (from data Northbridge already has) → *Send DualEntry invite*: an email sent from Portfolio Intelligence in the operating partner's name to the CFO, CC the routed rep, with one unique link → the CFO books a demo on that rep's calendar and/or opens a sandbox with sample data → progress updates automatically (invite sent, demo booked, sandbox opened, then DualEntry-side stages). Northbridge sees milestones only. |
 | **Reporting** | Quarterly operating summary, company comparison summary and cost insight summary — printable (Print / PDF) and exportable to CSV, respecting filters and labelled as synthetic. |
 
 Global header: fund, period type (quarter / YTD / TTM / FY), reporting period, comparison basis, industry, vintage, business model, geography, investment-date range, reset, USD indicator, ⌘K search, watchlist, methodology, demo user menu.
@@ -50,7 +50,7 @@ npm run typecheck    # TypeScript (strict)
 npm run lint         # ESLint, zero warnings allowed
 npm test             # Vitest: calculations, aggregation, data integrity, insights, query parser
 npm run build        # Next.js production build (all routes statically prerendered)
-npm run test:e2e     # Playwright: navigation, filters, exports, add company, upload, explore & booking, approval, Ask, and the full 8-step demo
+npm run test:e2e     # Playwright: navigation, filters, exports, add company, upload, explore invite (demo + sandbox), approval, Ask, and the full 8-step demo
 npm run verify       # typecheck + lint + unit tests + build
 ```
 
@@ -87,8 +87,8 @@ Or import the repository in the Vercel dashboard — framework preset *Next.js*,
 - Deliberate stories derived from parameters, never hard-coded insights: Meridian (labor outpacing revenue, margin pressure, add-on), Atlas (multi-entity SaaS), Beacon (accelerating growth and operating leverage), Horizon (slow growth, rising personnel cost, GBP reporting), Cedar (stable efficient), Summit (high margin, weak cash conversion, cost reclassification), Crestpoint (persistent budget misses), Northstar (recent acquisition with entity-level organic split), Harbor (tuck-in without organic data), Lattice (growth-stage SaaS), Apex (missing Q3 submission, stale), BluePeak (partial quarter, no labor split, no budget).
 
 **Prototype simulations** (functional UI, no external effects):
-- DualEntry data-share approvals and the intro-call booking page (`/approve/…`, `/book/…`) are simulated DualEntry pages, clearly labelled. The reps (Sarah Chen, Daniel Okafor) are fictional.
-- *Introduce to DualEntry* opens a `mailto:` draft in your mail client; the app itself sends nothing. Later migration stages (call held, evaluating, migrating, connected) are set with a labelled demo control — in production they would arrive from DualEntry.
+- DualEntry data-share approvals and the CFO's invite page (`/approve/…`, `/invite/…`) are simulated DualEntry pages, clearly labelled. The sandbox is represented by a confirmation only. The reps (Sarah Chen, Daniel Okafor) are fictional.
+- *Send DualEntry invite* records the invite but no email actually leaves the app; use *Open the CFO's view* to play the CFO. Later stages (demo held, evaluating, migrating, on DualEntry) are set with a labelled demo control — in production they would arrive from DualEntry.
 - Uploads are parsed and validated in the browser.
 - "Ask Your Portfolio" uses a local, rule-based interpreter — no LLM or API call. All figures come from the analytics engine.
 

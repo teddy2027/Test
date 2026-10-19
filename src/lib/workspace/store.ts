@@ -11,7 +11,7 @@ import type { Company } from "../data/types";
 import type { UploadResult } from "./csv";
 import { defaultMigration, demoNow, emptyMigration, newToken } from "./migration";
 import { companyIdFor } from "./synth";
-import type { DiscussionOutcome, MigrationStage, NewCompanyInput, ShareScope, Workspace } from "./types";
+import type { MigrationStage, NewCompanyInput, ShareScope, Workspace } from "./types";
 
 const USER = "Alex Morgan";
 
@@ -19,10 +19,10 @@ interface WorkspaceState extends Workspace {
   rev: number;
   addCompany: (input: NewCompanyInput, takenIds: string[]) => string;
   acceptUpload: (companyId: string, fileName: string, result: UploadResult, reason: string | null) => void;
-  setOutcome: (companyId: string, outcome: DiscussionOutcome, note: string) => void;
-  introduce: (companyId: string, repId: string, token: string) => void;
+  sendInvite: (companyId: string, repId: string, token: string, repName: string) => void;
   bookCall: (token: string, slot: string, name: string, email: string) => void;
-  cfoResponse: (token: string, response: "not_now" | "info") => void;
+  openSandbox: (token: string, name: string, email: string) => void;
+  notNow: (token: string) => void;
   advance: (companyId: string, stage: MigrationStage) => void;
   requestShare: (companyId: string) => string;
   decideShare: (token: string, decision: "approved" | "declined", scope: ShareScope | null) => void;
@@ -109,25 +109,24 @@ export const useWorkspace = create<WorkspaceState>()(
               },
             ],
           })),
-        setOutcome: (companyId, outcome, note) =>
+        sendInvite: (companyId, repId, token, repName) =>
           commit((ws) => {
             const m = mig(ws, companyId);
-            const label = { interested: "interested", wants_info: "wants more information", not_now: "not now" }[outcome];
+            const at = demoNow();
+            const resend = m.token !== null;
             return {
               ...ws,
               migration: {
                 ...ws.migration,
-                [companyId]: { ...m, stage: "discussed", outcome, history: [...m.history, { at: demoNow(), stage: "discussed", label: `Discussed with CFO — ${label}${note ? ` (${note})` : ""}`, by: "sponsor" }] },
+                [companyId]: {
+                  ...m,
+                  stage: resend && m.stage !== "declined" ? m.stage : "introduced",
+                  repId,
+                  token,
+                  introducedAt: at,
+                  history: [...m.history, { at, stage: "introduced", label: `${resend ? "Invite re-sent" : "Invite sent"} to the CFO · ${repName} copied`, by: "sponsor" }],
+                },
               },
-            };
-          }),
-        introduce: (companyId, repId, token) =>
-          commit((ws) => {
-            const m = mig(ws, companyId);
-            const at = demoNow();
-            return {
-              ...ws,
-              migration: { ...ws.migration, [companyId]: { ...m, stage: "introduced", repId, token, introducedAt: at, history: [...m.history, { at, stage: "introduced", label: "Introduction email sent", by: "sponsor" }] } },
             };
           }),
         bookCall: (token, slot, name, email) =>
@@ -135,28 +134,33 @@ export const useWorkspace = create<WorkspaceState>()(
             const m = byToken(ws, token);
             if (!m) return ws;
             const when = new Date(`${slot}:00Z`).toLocaleString("en-US", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+            const stage: MigrationStage = m.stage === "introduced" || m.stage === "call_booked" || m.stage === "declined" ? "call_booked" : m.stage;
             return {
               ...ws,
               migration: {
                 ...ws.migration,
-                [m.companyId]: { ...m, stage: m.stage === "introduced" || m.stage === "call_booked" ? "call_booked" : m.stage, booking: { slot, name, email }, history: [...m.history, { at: demoNow(), stage: "call_booked", label: `${m.booking ? "Intro call rescheduled" : "Intro call booked"} for ${when}`, by: "cfo" }] },
+                [m.companyId]: { ...m, stage, booking: { slot, name, email }, history: [...m.history, { at: demoNow(), stage: "call_booked", label: `${m.booking ? "Demo rescheduled" : "Demo booked"} for ${when}`, by: "cfo" }] },
               },
             };
           }),
-        cfoResponse: (token, response) =>
+        openSandbox: (token, name, email) =>
+          commit((ws) => {
+            const m = byToken(ws, token);
+            if (!m || m.sandbox) return ws;
+            const at = demoNow();
+            const stage: MigrationStage = m.stage === "declined" ? "introduced" : m.stage;
+            return { ...ws, migration: { ...ws.migration, [m.companyId]: { ...m, stage, sandbox: { name, email, at }, history: [...m.history, { at, stage, label: "Sandbox opened", by: "cfo" }] } } };
+          }),
+        notNow: (token) =>
           commit((ws) => {
             const m = byToken(ws, token);
             if (!m) return ws;
-            const stage: MigrationStage = response === "not_now" ? "declined" : m.stage;
-            return {
-              ...ws,
-              migration: { ...ws.migration, [m.companyId]: { ...m, stage, history: [...m.history, { at: demoNow(), stage, label: response === "not_now" ? "CFO chose “Not now” on the booking page" : "CFO asked DualEntry for more information", by: "cfo" }] } },
-            };
+            return { ...ws, migration: { ...ws.migration, [m.companyId]: { ...m, stage: "declined", history: [...m.history, { at: demoNow(), stage: "declined", label: "CFO chose “Not now” on the invite page", by: "cfo" }] } } };
           }),
         advance: (companyId, stage) =>
           commit((ws) => {
             const m = mig(ws, companyId);
-            const labels: Partial<Record<MigrationStage, string>> = { call_held: "Intro call held", evaluating: "Evaluating DualEntry", migrating: "Migration to DualEntry started", connected: "Running on DualEntry", declined: "Decided not to proceed" };
+            const labels: Partial<Record<MigrationStage, string>> = { call_held: "Demo held", evaluating: "Evaluating DualEntry", migrating: "Migration to DualEntry started", connected: "Running on DualEntry", declined: "Decided not to proceed" };
             return { ...ws, migration: { ...ws.migration, [companyId]: { ...m, stage, history: [...m.history, { at: demoNow(), stage, label: labels[stage] ?? stage, by: "dualentry" }] } } };
           }),
         requestShare: (companyId) => {
@@ -171,7 +175,12 @@ export const useWorkspace = create<WorkspaceState>()(
     },
     {
       name: "de-portfolio-intelligence-workspace",
-      version: 1,
+      version: 2,
+      // v1 stored a "discussed" stage and CFO outcomes that no longer exist: keep companies and uploads, reseed the pipeline.
+      migrate: (persisted, version) => {
+        const ws = persisted as Workspace;
+        return (version < 2 ? { ...ws, migration: defaultMigration() } : ws) as unknown as WorkspaceState;
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => pick(s),
       skipHydration: true,

@@ -1,6 +1,6 @@
 # Architecture — DualEntry | Portfolio Intelligence
 
-A client-rendered Next.js 15 (App Router) application. Pages are statically prerendered (the simulated `/book` and `/approve` pages render on demand); data is generated deterministically in the browser bundle, so the prototype needs no backend. The structure mirrors how the product would be split in production: **data → analytics engine → insight / query layers → UI**. The UI never calculates a metric itself.
+A client-rendered Next.js 15 (App Router) application. Pages are statically prerendered (the simulated `/invite` and `/approve` pages render on demand); data is generated deterministically in the browser bundle, so the prototype needs no backend. The structure mirrors how the product would be split in production: **data → analytics engine → insight / query layers → UI**. The UI never calculates a metric itself.
 
 ```
 src/
@@ -13,9 +13,9 @@ src/
     format.ts    single number-formatting module (N/A, $M/$K, %, pp)
     export.ts    CSV builder with synthetic-data provenance header
   components/    shell, ui primitives, fin display atoms, charts, and one folder per page
-  app/           routes: / · /insights · /compare · /companies · /companies/[id] · /connections · /reporting · /book/[token] · /approve/[token] (simulated DualEntry pages)
+  app/           routes: / · /insights · /compare · /companies · /companies/[id] · /connections · /reporting · /invite/[token] · /approve/[token] (simulated DualEntry pages)
 tests/unit       Vitest (calculations, aggregation, data integrity, insights, query)
-tests/e2e        Playwright (navigation, filters, exports, add company, upload, explore & booking, approval, Ask, eight-step demo)
+tests/e2e        Playwright (navigation, filters, exports, add company, upload, explore invite (demo + sandbox), approval, Ask, eight-step demo)
 ```
 
 ## Data model (`src/lib/data`)
@@ -78,7 +78,7 @@ Everything the user creates lives in a small `Workspace` object (added companies
 - **Added companies** join the dataset with no months (`lastReportedMonth = -1`, shown as *Awaiting data* and excluded from totals). A DualEntry company is synthesized from a template company of the same business model, scaled to its revenue, only after the company approves the share.
 - **Uploads** (`csv.ts`) are validated against control totals, required lines, duplicates, future months and restatements; accepted submissions overwrite those months (the latest upload wins; earlier versions stay in the history).
 - **Share scope** is enforced in the overlay, not the UI: summary granularity removes the revenue split and personnel memos, no cash flow removes cash fields, and a partial entity share is flagged so reconciliation checks skip it.
-- **Migration** (`migration.ts`): stages, rep routing (≥4 entities or ≥$100M revenue → enterprise rep), unique 90-day booking tokens, talking points, and the effort model behind the *Sponsor effort* figures.
+- **Migration** (`migration.ts`): stages, rep routing (≥4 entities or ≥$100M revenue → enterprise rep), unique 90-day invite links (demo booking + sandbox), talking points, and the effort model behind the *Sponsor effort* figures.
 
 `setWorkspace()` invalidates the cached dataset and engine caches; React views re-render through a `rev` counter.
 

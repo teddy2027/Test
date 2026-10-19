@@ -10,18 +10,17 @@ import type { Company } from "../data/types";
 import { COMPANY_SEEDS } from "../data/seed";
 import type { MigrationStage, MigrationState, Submission, Workspace } from "./types";
 
-export const STAGE_ORDER: MigrationStage[] = ["not_started", "discussed", "introduced", "call_booked", "call_held", "evaluating", "migrating", "connected"];
+export const STAGE_ORDER: MigrationStage[] = ["not_started", "introduced", "call_booked", "call_held", "evaluating", "migrating", "connected"];
 
 export const STAGE_LABEL: Record<MigrationStage, string> = {
   not_started: "Not started",
-  discussed: "Discussed with CFO",
-  introduced: "Introduced to DualEntry",
-  call_booked: "Intro call booked",
-  call_held: "Intro call held",
+  introduced: "Invite sent",
+  call_booked: "Demo booked",
+  call_held: "Demo held",
   evaluating: "Evaluating",
   migrating: "Migrating",
   connected: "On DualEntry",
-  declined: "Declined",
+  declined: "Not now",
 };
 
 /** Stages that only DualEntry can report (simulated in the prototype). */
@@ -81,7 +80,7 @@ export function bookingSlots(): { day: string; times: string[] }[] {
 }
 
 export function emptyMigration(companyId: string): MigrationState {
-  return { companyId, stage: "not_started", outcome: null, repId: null, token: null, introducedAt: null, booking: null, history: [] };
+  return { companyId, stage: "not_started", repId: null, token: null, introducedAt: null, booking: null, sandbox: null, history: [] };
 }
 
 /** Seeded pipeline so the portfolio summary is not empty in the demo (Meridian is left "not started" for the live walkthrough). */
@@ -91,52 +90,55 @@ export function defaultMigration(): Record<string, MigrationState> {
     "harbor-operations": {
       companyId: "harbor-operations",
       stage: "call_booked",
-      outcome: "interested",
       repId: "sarah-chen",
       token: "hb7k2m9q4xr1",
       introducedAt: "2026-10-06T15:10:00Z",
       booking: { slot: "2026-10-20T14:00", name: "Renee Albright", email: "renee.albright@harboroperations.example" },
+      sandbox: { name: "Renee Albright", email: "renee.albright@harboroperations.example", at: "2026-10-06T19:40:00Z" },
       history: [
-        ev("discussed", "Discussed with CFO — interested (Tidewater integration, 3 entities)", "2026-10-02T16:00:00Z", "sponsor"),
-        ev("introduced", "Introduced to Sarah Chen", "2026-10-06T15:10:00Z", "sponsor"),
-        ev("call_booked", "Intro call booked for Tue 20 Oct, 14:00", "2026-10-07T09:12:00Z", "cfo"),
+        ev("introduced", "Invite sent to the CFO · Sarah Chen copied", "2026-10-06T15:10:00Z", "sponsor"),
+        ev("introduced", "Sandbox opened", "2026-10-06T19:40:00Z", "cfo"),
+        ev("call_booked", "Demo booked for Tue 20 Oct, 14:00", "2026-10-07T09:12:00Z", "cfo"),
       ],
     },
     "cedar-cloud": {
       companyId: "cedar-cloud",
       stage: "evaluating",
-      outcome: "interested",
       repId: "sarah-chen",
       token: "cd3p8w1n6zt4",
       introducedAt: "2026-09-08T14:00:00Z",
       booking: { slot: "2026-09-15T11:00", name: "Elena Sokolova", email: "elena.sokolova@cedarcloud.example" },
+      sandbox: { name: "Elena Sokolova", email: "elena.sokolova@cedarcloud.example", at: "2026-09-16T08:30:00Z" },
       history: [
-        ev("discussed", "Discussed with CFO — interested", "2026-09-03T15:00:00Z", "sponsor"),
-        ev("introduced", "Introduced to Sarah Chen", "2026-09-08T14:00:00Z", "sponsor"),
-        ev("call_booked", "Intro call booked for Tue 15 Sep, 11:00", "2026-09-08T18:30:00Z", "cfo"),
-        ev("call_held", "Intro call held", "2026-09-15T12:00:00Z", "dualentry"),
-        ev("evaluating", "Evaluating — product demo completed", "2026-09-29T10:00:00Z", "dualentry"),
+        ev("introduced", "Invite sent to the CFO · Sarah Chen copied", "2026-09-08T14:00:00Z", "sponsor"),
+        ev("call_booked", "Demo booked for Tue 15 Sep, 11:00", "2026-09-08T18:30:00Z", "cfo"),
+        ev("call_held", "Demo held", "2026-09-15T12:00:00Z", "dualentry"),
+        ev("call_held", "Sandbox opened", "2026-09-16T08:30:00Z", "cfo"),
+        ev("evaluating", "Evaluating DualEntry", "2026-09-29T10:00:00Z", "dualentry"),
       ],
     },
     "summit-compliance": {
       companyId: "summit-compliance",
-      stage: "discussed",
-      outcome: "interested",
-      repId: null,
-      token: null,
-      introducedAt: null,
+      stage: "introduced",
+      repId: "sarah-chen",
+      token: "sm4q9t2b7kx8",
+      introducedAt: "2026-10-12T10:20:00Z",
       booking: null,
-      history: [ev("discussed", "Discussed with CFO — interested (close speed, receivables visibility)", "2026-10-09T17:00:00Z", "sponsor")],
+      sandbox: null,
+      history: [ev("introduced", "Invite sent to the CFO · Sarah Chen copied", "2026-10-12T10:20:00Z", "sponsor")],
     },
     "horizon-advisory": {
       companyId: "horizon-advisory",
-      stage: "discussed",
-      outcome: "not_now",
-      repId: null,
-      token: null,
-      introducedAt: null,
+      stage: "introduced",
+      repId: "sarah-chen",
+      token: "hz6w1m8c3pv5",
+      introducedAt: "2026-09-22T11:00:00Z",
       booking: null,
-      history: [ev("discussed", "Discussed with CFO — not now (revisit after FY end in March)", "2026-09-22T11:00:00Z", "sponsor")],
+      sandbox: { name: "Harriet Cole", email: "harriet.cole@horizonadvisory.example", at: "2026-09-24T16:05:00Z" },
+      history: [
+        ev("introduced", "Invite sent to the CFO · Sarah Chen copied", "2026-09-22T11:00:00Z", "sponsor"),
+        ev("introduced", "Sandbox opened", "2026-09-24T16:05:00Z", "cfo"),
+      ],
     },
   };
 }

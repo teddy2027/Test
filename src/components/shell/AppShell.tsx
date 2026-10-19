@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrated = useApp((s) => s.hydrated);
   const path = usePathname();
   // Simulated pages that belong to the CFO / DualEntry render without the sponsor's navigation.
-  if (path.startsWith("/book/") || path.startsWith("/approve/")) return <TooltipProvider delayDuration={150}>{hydrated ? children : <div className="p-8"><Loading /></div>}</TooltipProvider>;
+  if (path.startsWith("/invite/") || path.startsWith("/approve/")) return <TooltipProvider delayDuration={150}>{hydrated ? children : <div className="p-8"><Loading /></div>}</TooltipProvider>;
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex min-h-screen">

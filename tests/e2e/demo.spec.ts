@@ -68,10 +68,10 @@ test("eight-step live demo", async ({ page }) => {
   await page.getByTestId("explore-from-connections").click();
   const panel = page.getByTestId("explore-panel");
   await expect(panel.getByTestId("talking-points")).toBeVisible();
-  await panel.getByTestId("outcome-interested").click();
-  await panel.getByTestId("introduce").click();
-  await page.getByTestId("mark-sent").click();
-  await panel.getByTestId("booking-link").click();
+  await panel.getByTestId("send-invite").click();
+  await page.getByTestId("send-invite-confirm").click();
+  await page.getByRole("button", { name: "Done" }).click();
+  await panel.getByTestId("invite-link").click();
   await page.getByTestId("slot").first().click();
   await page.getByTestId("confirm-booking").click();
   await expect(page.getByTestId("booking-confirmed")).toBeVisible();

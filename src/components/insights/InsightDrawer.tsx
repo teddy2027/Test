@@ -287,16 +287,20 @@ function DrawerBody({ insight, universe, onClose }: { insight: Insight; universe
             Inspect company data <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </Link>
-        <Link href={`/compare?subject=${c.id}`} onClick={onClose}>
-          <Button>
-            <Columns3 className="h-3.5 w-3.5" /> Compare with peers
-          </Button>
-        </Link>
-        <Link href={`/insights?tab=ask&q=${encodeURIComponent(`Compare ${c.name} with other ${c.sector === "Software" ? "software" : "services"} businesses`)}`} onClick={onClose}>
-          <Button variant="ghost">
-            <ExternalLink className="h-3.5 w-3.5" /> Ask about {c.name}
-          </Button>
-        </Link>
+        {c.lastReportedMonth >= 0 && (
+          <>
+            <Link href={`/compare?subject=${c.id}`} onClick={onClose}>
+              <Button>
+                <Columns3 className="h-3.5 w-3.5" /> Compare with peers
+              </Button>
+            </Link>
+            <Link href={`/insights?tab=ask&q=${encodeURIComponent(`Compare ${c.name} with other ${c.sector === "Software" ? "software" : "services"} businesses`)}`} onClick={onClose}>
+              <Button variant="ghost">
+                <ExternalLink className="h-3.5 w-3.5" /> Ask about {c.name}
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

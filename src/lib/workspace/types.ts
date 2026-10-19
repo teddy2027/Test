@@ -76,7 +76,6 @@ export interface ConnectionRequest {
 
 export type MigrationStage =
   | "not_started"
-  | "discussed"
   | "introduced"
   | "call_booked"
   | "call_held"
@@ -84,8 +83,6 @@ export type MigrationStage =
   | "migrating"
   | "connected"
   | "declined";
-
-export type DiscussionOutcome = "interested" | "wants_info" | "not_now";
 
 export interface MigrationEvent {
   at: string;
@@ -97,11 +94,12 @@ export interface MigrationEvent {
 export interface MigrationState {
   companyId: string;
   stage: MigrationStage;
-  outcome: DiscussionOutcome | null;
   repId: string | null;
   token: string | null;
   introducedAt: string | null;
   booking: { slot: string; name: string; email: string } | null;
+  /** The CFO activated a DualEntry sandbox (sample data only) from the invite page. */
+  sandbox: { name: string; email: string; at: string } | null;
   history: MigrationEvent[];
 }
 
