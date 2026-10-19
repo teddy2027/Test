@@ -159,6 +159,28 @@ test.describe("Portfolio Intelligence", () => {
     await expect(page.getByTestId("company-name")).toHaveText("Meridian Services");
   });
 
+  test("findings: Outperforming and All views switch the list", async ({ page }) => {
+    await page.goto("/companies?tab=findings");
+    await page.getByRole("radio", { name: /Outperforming/ }).click();
+    await expect(page.getByTestId("findings-positive")).toBeVisible();
+    await expect(page.getByTestId("findings-attention")).toHaveCount(0);
+    await expect(page.getByTestId("findings-positive")).toContainText("Beacon Analytics");
+    await page.getByRole("radio", { name: "All" }).click();
+    await expect(page.getByTestId("findings-attention")).toBeVisible();
+    await expect(page.getByTestId("findings-positive")).toBeVisible();
+    await page.getByRole("radio", { name: /Needs attention/ }).click();
+    await expect(page.getByTestId("findings-positive")).toHaveCount(0);
+  });
+
+  test("Reports menu lists every report and opens each one", async ({ page }) => {
+    await page.goto("/connections");
+    await page.getByTestId("reports-menu").click();
+    for (const id of ["report-quarterly", "report-side", "report-peers", "report-benchmark"]) await expect(page.getByTestId(id)).toBeVisible();
+    await page.getByTestId("report-benchmark").click();
+    await expect(page.getByTestId("benchmark-mode")).toBeVisible();
+    await expect(page.getByTestId("compare-print")).toBeVisible();
+  });
+
   test("Ask Your Portfolio answers, supports follow-ups and declines unsupported questions", async ({ page }) => {
     await page.goto("/companies?tab=ask");
     await page.getByTestId("ask-input").fill("What is our average EBITDA margin?");
@@ -180,6 +202,10 @@ test.describe("Portfolio Intelligence", () => {
     await page.goto("/connections");
     await expect(page.getByTestId("add-company")).toHaveCount(0); // adding lives in Companies only
     await expect(page.getByTestId("close-meridian-services")).toHaveText("14 days");
+    await expect(page.getByTestId("arrives-meridian-services")).toHaveText(/~\d+ days/);
+    await expect(page.getByTestId("arrives-northstar-systems")).toHaveText("At close");
+    await expect(page.getByTestId("budget-bluepeak-solutions")).toHaveText("Missing");
+    await expect(page.getByTestId("conn-row-apex-workforce")).toContainText("Low");
     await expect(page.getByTestId("conn-row-meridian-services")).toContainText("NetSuite");
     await expect(page.getByTestId("depth-compare")).toContainText(/Northstar Systems: \+8\.1% organic vs \+23\.2% reported/);
     await expect(page.getByTestId("depth-compare")).toContainText("Northbridge effort");
@@ -371,7 +397,8 @@ test.describe("Portfolio Intelligence", () => {
 
   test("quarterly pack opens from Portfolio and exports CSV", async ({ page }) => {
     await page.goto("/");
-    await page.getByTestId("export-pack").click();
+    await page.getByTestId("reports-menu").click();
+    await page.getByTestId("report-quarterly").click();
     await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Portfolio", exact: true })).toHaveClass(/bg-side-active/);
     await expect(page.getByTestId("report-preview")).toContainText("Quarterly portfolio operating summary");
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("report-csv").click()]);

@@ -111,11 +111,11 @@ export function FreshnessDot({ company }: { company: Company }) {
   );
 }
 
-export function QualityBadge({ q }: { q: "High" | "Medium" | "Low" }) {
+export function QualityBadge({ q, short = false }: { q: "High" | "Medium" | "Low"; short?: boolean }) {
   const tone = q === "High" ? "pos" : q === "Medium" ? "info" : "warn";
   return (
     <Tip content="Data confidence based on connection type, completeness, freshness and definition consistency.">
-      <Badge tone={tone}>{q} confidence</Badge>
+      <Badge tone={tone}>{short ? q : `${q} confidence`}</Badge>
     </Tip>
   );
 }

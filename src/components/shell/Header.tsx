@@ -18,9 +18,39 @@ const TITLES: [string, string][] = [
   ["/companies/", "Companies · Company"],
   ["/companies", "Companies"],
   ["/connections", "Data Connections"],
-  ["/reporting", "Portfolio · Quarterly pack"],
+  ["/reporting", "Reports · Quarterly portfolio report"],
   ["/", "Portfolio"],
 ];
+
+/** Every report in one menu, reachable from any page. Each opens a view with Print / PDF and CSV export. */
+const REPORTS = [
+  { label: "Quarterly portfolio report", sub: "KPIs, funds, every company, key findings", href: "/reporting", testId: "report-quarterly" },
+  { label: "Company comparison", sub: "2–5 companies side by side", href: "/companies?tab=compare&mode=side", testId: "report-side" },
+  { label: "Company vs peers", sub: "One company against similar companies", href: "/companies?tab=compare&mode=peers", testId: "report-peers" },
+  { label: "Cost and profitability benchmarks", sub: "Medians by sector, business model, fund…", href: routes.benchmark(), testId: "report-benchmark" },
+];
+
+function ReportsMenu() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="sm" data-testid="reports-menu">
+          <FileText className="h-3.5 w-3.5" /> Reports <ChevronDown className="h-3 w-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-1.5">
+        {REPORTS.map((r) => (
+          <Link key={r.href} href={r.href} onClick={() => setOpen(false)} className="block rounded-md px-2.5 py-2 hover:bg-subtle" data-testid={r.testId}>
+            <div className="text-sm font-medium text-ink">{r.label}</div>
+            <div className="text-xs text-muted">{r.sub}</div>
+          </Link>
+        ))}
+        <div className="border-t border-line px-2.5 pb-1 pt-2 text-[11px] text-muted">Each report prints or saves as PDF, and exports to CSV. Uses the filters and period above.</div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function GlobalSearch() {
   const router = useRouter();
@@ -48,7 +78,7 @@ function GlobalSearch() {
     { label: "Benchmark by group (cost benchmarking)", href: routes.benchmark() },
     { label: "Ask Your Portfolio", href: routes.ask() },
     { label: "Data Connections", href: "/connections" },
-    { label: "Quarterly portfolio pack", href: "/reporting" },
+    { label: "Quarterly portfolio report", href: "/reporting" },
   ];
   const term = q.trim().toLowerCase();
   const results = useMemo(() => {
@@ -381,6 +411,7 @@ export function Header() {
               <Badge tone="outline" className="py-0.5">USD</Badge>
             </span>
           </Tip>
+          <ReportsMenu />
           <GlobalSearch />
           <Tip content="Watchlist">
             <button onClick={() => setWatchlistOpen(true)} className="relative rounded-md p-1.5 text-muted hover:bg-subtle hover:text-ink" aria-label="Open watchlist">

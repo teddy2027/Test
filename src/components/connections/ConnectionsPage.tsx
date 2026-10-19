@@ -11,7 +11,7 @@ import { useScope } from "@/lib/state/hooks";
 import { EFFORT, effortSummary, emptyMigration, isStalled, STAGE_LABEL } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
 import type { MigrationStage } from "@/lib/workspace/types";
-import { ConnectionBadge, FreshnessDot, StatusPill } from "../fin/fin";
+import { ConnectionBadge, FreshnessDot, QualityBadge, StatusPill } from "../fin/fin";
 import { PageHeader } from "../overview/OverviewPage";
 import { UploadDialog } from "../uploads/UploadDialog";
 import { Badge, Button, CardHeader, Tip } from "../ui/primitives";
@@ -88,6 +88,10 @@ export function ConnectionsPage() {
   const stageOf = (id: string) => (ws.migration[id] ?? emptyMigration(id)).stage;
   const counts = PIPELINE.map((s) => ({ s, n: pipelineCos.filter((c) => stageOf(c.id) === s).length })).filter((x) => x.n > 0);
   const sandboxes = pipelineCos.filter((c) => ws.migration[c.id]?.sandbox).length;
+  const arrival = (id: string) => {
+    const d = effortSummary(data, ws.submissions, id).avgDaysUpload;
+    return d === null ? "—" : `~${Math.round(d)} days`;
+  };
   const stalledIds = new Set(pipelineCos.filter((c) => ws.migration[c.id] && isStalled(ws.migration[c.id]!)).map((c) => c.id));
 
   return (
@@ -187,7 +191,7 @@ export function ConnectionsPage() {
       <div className="rounded-lg border border-line bg-surface shadow-card" data-testid="connections-table">
         <CardHeader title="Connection inventory" description={`Reporting status for ${period.label} · freshness standard 30 days`} />
         <div className="thin-scroll overflow-x-auto">
-          <table className="w-full min-w-[1240px] text-sm">
+          <table className="w-full min-w-[1480px] text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle text-xs text-muted">
                 <th className="px-4 py-2 text-left font-medium">Company</th>
@@ -198,9 +202,20 @@ export function ConnectionsPage() {
                     <span className="cursor-help">Month-end close</span>
                   </Tip>
                 </th>
+                <th className="px-3 py-2 text-right font-medium">
+                  <Tip content="When figures reach Northbridge: at close for DualEntry companies; for uploads, the average business days after month-end over the last six months.">
+                    <span className="cursor-help">Arrives</span>
+                  </Tip>
+                </th>
                 <th className="px-3 py-2 text-left font-medium">Last refresh</th>
                 <th className="px-3 py-2 text-left font-medium">Data through</th>
                 <th className="px-3 py-2 text-left font-medium">{period.label}</th>
+                <th className="px-3 py-2 text-left font-medium">Budget</th>
+                <th className="px-3 py-2 text-left font-medium">
+                  <Tip content="High: figures from the ledger, reconciled automatically. Medium: an uploaded pack that passed validation. Low: missing or partial months, or restatements.">
+                    <span className="cursor-help">Confidence</span>
+                  </Tip>
+                </th>
                 <th className="px-3 py-2 text-left font-medium">Gaps</th>
                 <th className="px-3 py-2 text-left font-medium">Explore DualEntry</th>
                 <th className="px-4 py-2 text-right font-medium">Action</th>
@@ -227,12 +242,21 @@ export function ConnectionsPage() {
                     <td className="num whitespace-nowrap px-3 py-2 text-right text-ink-2" data-testid={`close-${c.id}`}>
                       {c.closeDays ? `${c.closeDays} days` : <span className="text-faint">—</span>}
                     </td>
+                    <td className="num whitespace-nowrap px-3 py-2 text-right text-ink-2" data-testid={`arrives-${c.id}`}>
+                      {c.connection === "dualentry" ? "At close" : arrival(c.id)}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       <FreshnessDot company={c} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-ink-2">{lastReportedLabel(c.lastReportedMonth)}</td>
                     <td className="px-3 py-2">
                       <StatusPill status={a.current.status} months={a.current.monthsAvailable} expected={a.current.monthsExpected} awaiting={c.lastReportedMonth < 0} />
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-ink-2" data-testid={`budget-${c.id}`}>
+                      {a.budget.status === "complete" ? (a.budget.cfo === null ? "P&L only" : "Complete") : a.budget.status === "partial" ? <span className="text-warn">Partial</span> : <span className="text-warn">Missing</span>}
+                    </td>
+                    <td className="px-3 py-2">
+                      <QualityBadge q={c.dataQuality} short />
                     </td>
                     <td className="px-3 py-2 text-xs">
                       {c.missingFields.length ? (

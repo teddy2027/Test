@@ -11,7 +11,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Download, GitCompare, GitMerge, Plus, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Download, GitCompare, GitMerge, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import type { CompanyAnalysis } from "@/lib/engine/company";
@@ -24,7 +24,6 @@ import { fmtMetric, fmtPct, fmtUsd } from "@/lib/format";
 import { CardHeader, MetricLabel, Popover, PopoverContent, PopoverTrigger, Tip, Button } from "../ui/primitives";
 import { Delta, StatusPill, WatchButton } from "../fin/fin";
 import { routes } from "@/lib/routes";
-import { AddCompanyDialog } from "../companies/AddCompanyDialog";
 
 const MAX_COMPARE = 5;
 
@@ -75,7 +74,6 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
   const [query, setQuery] = useState("");
   const [visibility, setVisibility] = useState<VisibilityState>({ arr: false, laborIntensity: false, cogsRatio: false, gaRatio: false, smRatio: false, revenuePerEmployee: false, revenueVsBudget: false, system: false });
   const [selected, setSelected] = useState<string[]>([]);
-  const [adding, setAdding] = useState(false);
   const toggleSelect = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= MAX_COMPARE ? cur : [...cur, id]));
 
   const rows: Row[] = useMemo(
@@ -320,9 +318,6 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
             <Button size="sm" onClick={exportCsv} data-testid="export-csv">
               <Download className="h-3.5 w-3.5" /> Export CSV
             </Button>
-            <Button size="sm" onClick={() => setAdding(true)} data-testid="add-company">
-              <Plus className="h-3.5 w-3.5" /> Add company
-            </Button>
           </>
         }
       />
@@ -401,7 +396,6 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
           <GitMerge className="h-3 w-3 text-warn" /> M&A = comparison spans an acquisition.
         </span>
       </div>
-      <AddCompanyDialog open={adding} onOpenChange={setAdding} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Building2, Columns3, Sparkles } from "lucide-react";
+import { AlertTriangle, Building2, Columns3, Plus, Sparkles } from "lucide-react";
 import { ttmRevenue } from "@/lib/engine/benchmark";
 import { detectInsights, type Insight } from "@/lib/engine/insights";
 import { comparisonLabel } from "@/lib/engine/periods";
@@ -12,7 +12,8 @@ import { CompareWorkspace } from "../compare/CompareWorkspace";
 import { AskPanel } from "../insights/AskPanel";
 import { CompanyFindings, type FindingsView } from "../insights/CompanyFindings";
 import { InsightDrawer } from "../insights/InsightDrawer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/primitives";
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/primitives";
+import { AddCompanyDialog } from "./AddCompanyDialog";
 
 type Tab = "list" | "findings" | "compare" | "ask";
 const TABS: Tab[] = ["list", "findings", "compare", "ask"];
@@ -23,12 +24,13 @@ export function CompaniesSection() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const [adding, setAdding] = useState(false);
   const raw = params.get("tab") as Tab | null;
   const tab: Tab = raw && TABS.includes(raw) ? raw : "list";
   const insights = useMemo(() => detectInsights(companies, period), [companies, period]);
   const insightId = params.get("insight");
   const open = insightId ? insights.find((i) => i.id === insightId) ?? null : null;
-  const view: FindingsView = params.get("severity") === "positive" ? "positive" : params.get("view") === "all" ? "all" : "attention";
+  const view: FindingsView = params.get("severity") === "positive" || params.get("view") === "positive" ? "positive" : params.get("view") === "all" ? "all" : "attention";
   const attention = new Set(insights.filter((i) => i.severity === "high" || i.severity === "medium").map((i) => i.companyId)).size;
 
   const setParams = (patch: Record<string, string | null>) => {
@@ -45,7 +47,12 @@ export function CompaniesSection() {
 
   return (
     <div>
-      <PageHeader title="Companies" subtitle={`${summary.analyses.length} companies · ${period.label} · ${comparisonLabel(basis === "budget" ? "yoy" : basis, period)}`} />
+      <PageHeader title="Companies" subtitle={`${summary.analyses.length} companies · ${period.label} · ${comparisonLabel(basis === "budget" ? "yoy" : basis, period)}`}>
+        <Button variant="primary" onClick={() => setAdding(true)} data-testid="add-company">
+          <Plus className="h-3.5 w-3.5" /> Add portfolio company
+        </Button>
+      </PageHeader>
+      <AddCompanyDialog open={adding} onOpenChange={setAdding} />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="no-print mb-4">
           <TabsTrigger value="list" data-testid="tab-list">

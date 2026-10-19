@@ -52,7 +52,7 @@ export function ReportingPage() {
         <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
           <ArrowLeft className="h-3 w-3" /> Portfolio
         </Link>
-        <PageHeader title="Quarterly portfolio pack" subtitle="For the investment committee or investors. Respects the active filters and period; labelled as synthetic.">
+        <PageHeader title="Quarterly portfolio report" subtitle="For the investment committee or investors. Respects the active filters and period; labelled as synthetic.">
           <Button onClick={exportCsv} data-testid="report-csv">
             <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
