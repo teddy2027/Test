@@ -243,20 +243,26 @@ test.describe("Portfolio Intelligence", () => {
     await page.goto("/companies/meridian-services");
     await expect(page.getByTestId("booking-status")).toContainText("booked by");
     await expect(page.getByTestId("sandbox-status")).toContainText("Opened");
-    await expect(page.getByTestId("migration-timeline")).toContainText("Sandbox opened");
+    await expect(page.getByTestId("explore-stage")).toHaveText("Demo booked");
     await page.getByTestId("advance-call_held").click();
-    await expect(page.getByTestId("migration-timeline")).toContainText("Demo held");
+    await expect(page.getByTestId("explore-stage")).toHaveText("Demo held");
     await page.goto("/connections");
     await expect(page.getByTestId("pipeline-summary")).toContainText("opened the sandbox");
     expect(errors).toEqual([]);
   });
 
-  test("CFO can decline from the invite page", async ({ page }) => {
-    await page.goto("/invite/sm4q9t2b7kx8"); // Summit: invite sent, no response yet
+  test("silent invite shows as stalled; CFO can decline from the invite page", async ({ page }) => {
+    await page.goto("/companies/summit-compliance"); // Summit: invite sent 19 days ago, no response
+    await expect(page.getByTestId("stalled")).toBeVisible();
+    await expect(page.getByTestId("explore-panel")).toContainText("follow up or resend");
+    await page.goto("/connections");
+    await expect(page.getByTestId("pipeline-summary")).toContainText("1 stalled");
+    await page.goto("/invite/sm4q9t2b7kx8");
     await page.getByTestId("not-now").click();
     await expect(page.getByTestId("not-now-done")).toBeVisible();
     await page.goto("/companies/summit-compliance");
-    await expect(page.getByTestId("migration-timeline")).toContainText("Not now");
+    await expect(page.getByTestId("explore-stage")).toHaveText("Not now");
+    await expect(page.getByTestId("stalled")).toHaveCount(0);
   });
 
   test("invalid invite link is handled", async ({ page }) => {

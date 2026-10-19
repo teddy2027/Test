@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarCheck, Check, CheckCircle2, Clock, ExternalLink, FileUp, FlaskConical, Lock, Mail, Plug, Rocket, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, CalendarCheck, Check, CheckCircle2, Clock, ExternalLink, FileUp, FlaskConical, Lock, Mail, Plug, Rocket, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import { monthLabel } from "@/lib/data/calendar";
@@ -10,10 +10,12 @@ import { analyzeCompany } from "@/lib/engine/company";
 import { makePeriod } from "@/lib/engine/periods";
 import { formatDate, formatDateTime } from "@/lib/format";
 import {
+  daysSinceInvite,
   DUALENTRY_STAGES,
   EFFORT,
   effortSummary,
   emptyMigration,
+  isStalled,
   LINK_VALID_DAYS,
   linkExpiry,
   newToken,
@@ -23,7 +25,6 @@ import {
   STAGE_LABEL,
   STAGE_ORDER,
   talkingPoints,
-  WHAT_CHANGES,
 } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
 import type { MigrationStage } from "@/lib/workspace/types";
@@ -156,6 +157,7 @@ export function ExplorePanel({ company }: { company: Company }) {
   const points = talkingPoints(company, data, ws, a.yoy ? { reported: a.yoy.revenueGrowth, affected: a.yoy.acquisitions.length > 0 } : null);
   const rep = repById(m.repId);
   const linkPath = m.token ? `/invite/${m.token}` : null;
+  const stalled = isStalled(m);
 
   return (
     <div className="rounded-lg border border-line bg-surface shadow-card" data-testid="explore-panel" id="explore">
@@ -170,7 +172,17 @@ export function ExplorePanel({ company }: { company: Company }) {
             ? `Send ${company.financeLead.name} an invite from here: one link to book a demo with the right DualEntry rep and to try a sandbox. Northbridge sees progress only.`
             : `Invite sent to ${company.financeLead.name}. Progress updates here as the CFO books a demo, opens the sandbox and moves forward with DualEntry.`
         }
-        actions={<Badge tone={m.stage === "not_started" || m.stage === "declined" ? "neutral" : "brand"}>{STAGE_LABEL[m.stage]}</Badge>}
+        actions={
+          stalled ? (
+            <Badge tone="warn" data-testid="stalled">
+              Stalled
+            </Badge>
+          ) : (
+            <Badge tone={m.stage === "not_started" || m.stage === "declined" ? "neutral" : "brand"} data-testid="explore-stage">
+              {STAGE_LABEL[m.stage]}
+            </Badge>
+          )
+        }
       />
       <div className="space-y-4 p-4">
         {m.stage !== "not_started" && <StageTrack stage={m.stage} sandbox={!!m.sandbox} />}
@@ -183,14 +195,6 @@ export function ExplorePanel({ company }: { company: Company }) {
                 {points.map((p) => (
                   <li key={p.label}>
                     <span className="font-medium text-ink">{p.label}:</span> <span className="text-ink-2">{p.detail}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted">What would change on DualEntry</div>
-              <ul className="space-y-1 text-sm text-ink-2">
-                {WHAT_CHANGES.map((w) => (
-                  <li key={w} className="flex gap-2">
-                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-pos" /> {w}
                   </li>
                 ))}
               </ul>
@@ -234,7 +238,10 @@ export function ExplorePanel({ company }: { company: Company }) {
               )}
               <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5 rounded-md border border-line p-2.5">
                 <dt className="text-muted">Invite</dt>
-                <dd className="text-ink-2">Sent {formatDate(m.introducedAt!)} to {company.financeLead.email}</dd>
+                <dd className="text-ink-2">
+                  Sent {formatDate(m.introducedAt!)} to {company.financeLead.email}
+                  {stalled && <span className="block text-xs font-medium text-warn">No demo or sandbox after {daysSinceInvite(m)} days — follow up or resend</span>}
+                </dd>
                 <dt className="text-muted">Demo</dt>
                 <dd data-testid="booking-status" className={m.booking ? "font-medium text-pos" : "text-muted"}>
                   {m.booking ? `${fmtSlot(m.booking.slot)} · booked by ${m.booking.name}` : "Not booked yet"}
@@ -260,19 +267,8 @@ export function ExplorePanel({ company }: { company: Company }) {
               <p className="text-[11px] text-muted">Northbridge sees these milestones only — never the content of the CFO&apos;s conversations with DualEntry or what they do in the sandbox.</p>
             </div>
             <div>
-              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Timeline</div>
-              <ol className="space-y-1.5 border-l border-line pl-3 text-sm" data-testid="migration-timeline">
-                {[...m.history].reverse().map((h, i) => (
-                  <li key={i}>
-                    <span className="text-ink-2">{h.label}</span>
-                    <span className="ml-1 text-[11px] text-faint">
-                      · {formatDate(h.at)} · {h.by === "sponsor" ? "Northbridge" : h.by === "cfo" ? "CFO" : "DualEntry"}
-                    </span>
-                  </li>
-                ))}
-              </ol>
               {!["connected", "declined"].includes(m.stage) && (
-                <div className="mt-3 rounded-md border border-dashed border-line-strong p-2.5 text-xs">
+                <div className="rounded-md border border-dashed border-line-strong p-2.5 text-xs">
                   <div className="mb-1.5 font-medium text-ink-2">Demo control — in production these updates arrive from DualEntry</div>
                   <div className="flex flex-wrap gap-1.5">
                     {DUALENTRY_STAGES.filter((s) => STAGE_ORDER.indexOf(s) > STAGE_ORDER.indexOf(m.stage)).map((s) => (
@@ -319,7 +315,7 @@ function MigratedShareCta({ company }: { company: Company }) {
 function InviteDialog({ company, ttm, resend, onClose }: { company: Company; ttm: number | null; resend: boolean; onClose: () => void }) {
   const sendInvite = useWorkspace((s) => s.sendInvite);
   const [token] = useState(() => newToken());
-  const { rep, reason } = routeRep(company, ttm);
+  const { rep } = routeRep(company, ttm);
   const first = company.financeLead.name.split(" ")[0];
   const repFirst = rep.name.split(" ")[0];
   const [subject, setSubject] = useState(`${company.name}: explore DualEntry — book a demo or try the sandbox`);
@@ -348,7 +344,6 @@ function InviteDialog({ company, ttm, resend, onClose }: { company: Company; ttm
               <div className="font-medium text-ink">
                 {rep.name} <span className="font-normal text-muted">· {rep.title} (fictional)</span>
               </div>
-              <div className="text-xs text-muted">Routing: {reason}</div>
             </div>
           </div>
           <dl className="grid grid-cols-[70px_1fr] gap-x-3 gap-y-2 text-sm">
@@ -384,9 +379,6 @@ function InviteDialog({ company, ttm, resend, onClose }: { company: Company; ttm
                 <p className="mt-2 text-[11px] text-muted">Both open one link unique to {company.name}, valid {LINK_VALID_DAYS} days. The sandbox uses sample data — none of {company.name}&apos;s figures.</p>
               </div>
             </div>
-          </div>
-          <div className="flex items-start gap-1.5 text-xs text-muted">
-            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> The link carries only a random code. The page shows the company name, Northbridge as the introducer and {repFirst}&apos;s calendar — no financial data.
           </div>
           <div className="flex items-center justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={onClose}>

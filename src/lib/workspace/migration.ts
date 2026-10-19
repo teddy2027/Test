@@ -3,7 +3,7 @@
  * conversation talking points (from facts the sponsor already has) and the visible cost of manual reporting.
  * All people are fictional.
  */
-import { DEMO_TODAY, LAST_MONTH, monthLabel } from "../data/calendar";
+import { DEMO_TODAY, LAST_MONTH } from "../data/calendar";
 import { makeNoise } from "../data/rng";
 import type { IndexedDataset } from "../data";
 import type { Company } from "../data/types";
@@ -122,10 +122,10 @@ export function defaultMigration(): Record<string, MigrationState> {
       stage: "introduced",
       repId: "sarah-chen",
       token: "sm4q9t2b7kx8",
-      introducedAt: "2026-10-12T10:20:00Z",
+      introducedAt: "2026-09-25T10:20:00Z",
       booking: null,
       sandbox: null,
-      history: [ev("introduced", "Invite sent to the CFO · Sarah Chen copied", "2026-10-12T10:20:00Z", "sponsor")],
+      history: [ev("introduced", "Invite sent to the CFO · Sarah Chen copied", "2026-09-25T10:20:00Z", "sponsor")],
     },
     "horizon-advisory": {
       companyId: "horizon-advisory",
@@ -231,38 +231,43 @@ export interface TalkingPoint {
   detail: string;
 }
 
-/** Facts the operating partner can bring to the conversation with the CFO. Nothing here is shared with DualEntry. */
+/**
+ * The three facts most specific to this company, for the operating partner's conversation with the CFO.
+ * Ordered so company-specific pain (M&A, entities, close speed) beats generic effort points. Nothing here is shared.
+ */
 export function talkingPoints(company: Company, data: IndexedDataset, ws: Workspace, organic: { reported: number | null; affected: boolean } | null): TalkingPoint[] {
   const e = effortSummary(data, ws.submissions, company.id);
   const all = effortSummary(data, ws.submissions);
   const pts: TalkingPoint[] = [];
-  pts.push({
-    label: "Monthly reporting today",
-    detail: `Northbridge's team uploads ${company.name}'s pack by hand — ~${(e.hoursPerMonth || EFFORT.hoursPerPack).toFixed(1)} h a month${e.reuploads ? `, ${e.reuploads} re-upload${e.reuploads > 1 ? "s" : ""} in the last ${EFFORT.windowMonths} months` : ""}.`,
-  });
-  if (e.avgDaysUpload !== null)
-    pts.push({
-      label: "Timeliness",
-      detail: `Figures arrive ~${Math.round(e.avgDaysUpload)} business days after month-end. DualEntry companies in the portfolio publish at close (~${Math.round(all.avgDaysDualEntry ?? 5)} days).`,
-    });
-  if (company.closeDays && company.closeDays >= 8) pts.push({ label: "Close speed", detail: `${company.closeDays}-business-day close today.` });
-  if (company.entityCount >= 2) pts.push({ label: "Multi-entity", detail: `${company.entityCount} legal entities consolidated outside the ledger; Northbridge only sees the consolidated total.` });
   const txs = data.transactionsByCompany.get(company.id) ?? [];
   if (txs.length)
     pts.push({
       label: "Acquisitions",
       detail: `${txs.map((t) => t.target).join(", ")}: organic growth can't be separated from uploaded consolidated figures${organic?.affected && organic.reported !== null ? ` (reported growth ${(organic.reported * 100).toFixed(1)}% includes the acquisition)` : ""}.`,
     });
-  const gaps = company.missingFields.filter((f) => !/Balance sheet|Working-capital|Entity-level/.test(f));
+  if (company.entityCount >= 2) pts.push({ label: "Multi-entity", detail: `${company.entityCount} legal entities consolidated outside the ledger; Northbridge only sees the consolidated total.` });
+  if (company.closeDays && company.closeDays >= 8) pts.push({ label: "Close speed", detail: `${company.closeDays}-business-day close today; DualEntry companies in the portfolio close in ~${Math.round(all.avgDaysDualEntry ?? 5)} days.` });
+  const gaps = company.missingFields.filter((f) => !/Balance sheet|Working-capital|Entity-level|Budget \(not part/.test(f));
   if (gaps.length) pts.push({ label: "Reporting gaps", detail: gaps.join("; ") + "." });
-  if (company.lastReportedMonth >= 0 && company.lastReportedMonth < LAST_MONTH) pts.push({ label: "Latest data", detail: `Last reported month is ${monthLabel(company.lastReportedMonth)}.` });
-  return pts;
+  if (e.avgDaysUpload !== null) pts.push({ label: "Timeliness", detail: `Figures reach Northbridge ~${Math.round(e.avgDaysUpload)} business days after month-end.` });
+  pts.push({
+    label: "Monthly reporting today",
+    detail: `The pack is uploaded by hand — ~${(e.hoursPerMonth || EFFORT.hoursPerPack).toFixed(1)} h a month${e.reuploads ? `, ${e.reuploads} re-upload${e.reuploads > 1 ? "s" : ""} in the last ${EFFORT.windowMonths} months` : ""}.`,
+  });
+  return pts.slice(0, 3);
 }
 
-export const WHAT_CHANGES = [
-  "Figures publish automatically when the month closes — no monthly pack to send or upload",
-  "Entity-level books with intercompany eliminations",
-  "Organic vs acquired growth from entity ledgers",
-  "Drill-down from any metric to accounts (within the scope the company approves)",
-  "The company controls exactly what Northbridge sees",
-];
+// ---------------------------------------------------------------- stalled invites
+
+/** An invite with no demo booked and no sandbox opened after this many days is flagged as stalled. */
+export const STALL_DAYS = 14;
+
+export function daysSinceInvite(m: MigrationState): number | null {
+  if (!m.introducedAt) return null;
+  return Math.floor((Date.parse(`${DEMO_TODAY}T23:59:59Z`) - Date.parse(m.introducedAt)) / 86400000);
+}
+
+export function isStalled(m: MigrationState): boolean {
+  const d = daysSinceInvite(m);
+  return m.stage === "introduced" && !m.booking && !m.sandbox && d !== null && d >= STALL_DAYS;
+}

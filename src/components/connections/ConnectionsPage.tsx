@@ -8,7 +8,7 @@ import type { Company } from "@/lib/data/types";
 import { analyzeCompany } from "@/lib/engine/company";
 import { fmtPct, formatDateTime } from "@/lib/format";
 import { useScope } from "@/lib/state/hooks";
-import { EFFORT, effortSummary, emptyMigration, STAGE_LABEL } from "@/lib/workspace/migration";
+import { EFFORT, effortSummary, emptyMigration, isStalled, STAGE_LABEL } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
 import type { MigrationStage } from "@/lib/workspace/types";
 import { AddCompanyDialog } from "../companies/AddCompanyDialog";
@@ -97,6 +97,7 @@ export function ConnectionsPage() {
   const stageOf = (id: string) => (ws.migration[id] ?? emptyMigration(id)).stage;
   const counts = PIPELINE.map((s) => ({ s, n: pipelineCos.filter((c) => stageOf(c.id) === s).length })).filter((x) => x.n > 0);
   const sandboxes = pipelineCos.filter((c) => ws.migration[c.id]?.sandbox).length;
+  const stalledIds = new Set(pipelineCos.filter((c) => ws.migration[c.id] && isStalled(ws.migration[c.id]!)).map((c) => c.id));
 
   return (
     <div className="space-y-4">
@@ -167,6 +168,11 @@ export function ConnectionsPage() {
                 <span className="num font-semibold text-ink">{sandboxes}</span> <span className="text-muted">opened the sandbox</span>
               </span>
             )}
+            {stalledIds.size > 0 && (
+              <span className="rounded-md border border-warn/30 bg-warn-soft px-2 py-1 text-xs">
+                <span className="num font-semibold text-ink">{stalledIds.size}</span> <span className="text-warn">stalled</span>
+              </span>
+            )}
           </div>
           <div className="border-t border-line px-4 py-2">
             {pipelineCos
@@ -177,7 +183,8 @@ export function ConnectionsPage() {
                   <span className="text-xs text-muted">
                     {STAGE_LABEL[stageOf(c.id)]}
                     {ws.migration[c.id]?.booking && stageOf(c.id) === "call_booked" ? ` · ${new Date(`${ws.migration[c.id]!.booking!.slot}:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}` : ""}
-                    {ws.migration[c.id]?.sandbox ? " · sandbox" : ""} <ArrowRight className="inline h-3 w-3" />
+                    {ws.migration[c.id]?.sandbox ? " · sandbox" : ""}
+                    {stalledIds.has(c.id) && <span className="font-medium text-warn"> · stalled</span>} <ArrowRight className="inline h-3 w-3" />
                   </span>
                 </Link>
               ))}

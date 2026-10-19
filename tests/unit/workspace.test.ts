@@ -5,7 +5,7 @@ import { LAST_MONTH } from "@/lib/data/calendar";
 import { buildTemplate, parseAmount, parseCsv, recordToValues, validateUpload } from "@/lib/workspace/csv";
 import { applyWorkspace, existingByMonth } from "@/lib/workspace/overlay";
 import { buildAddedCompany, fullHistoryForSeeded } from "@/lib/workspace/synth";
-import { defaultMigration, effortSummary, routeRep, STAGE_ORDER, talkingPoints } from "@/lib/workspace/migration";
+import { defaultMigration, effortSummary, isStalled, routeRep, STAGE_ORDER, talkingPoints } from "@/lib/workspace/migration";
 import { analyzeCompany } from "@/lib/engine/company";
 import { resolvePeriod } from "@/lib/engine/periods";
 import type { Company } from "@/lib/data/types";
@@ -123,9 +123,17 @@ describe("migration pipeline", () => {
     expect(e.hoursPerMonth).toBeGreaterThan(8);
     expect(e.avgDaysUpload!).toBeGreaterThan(e.avgDaysDualEntry!);
   });
-  it("builds talking points from facts the sponsor already has", () => {
-    const pts = talkingPoints(d.companyById.get("meridian-services")!, d, { ...emptyWs(), migration: defaultMigration() }, null);
-    expect(pts.map((p) => p.label)).toEqual(expect.arrayContaining(["Monthly reporting today", "Timeliness", "Multi-entity", "Acquisitions"]));
+  it("keeps only the three most company-specific talking points", () => {
+    const ws = { ...emptyWs(), migration: defaultMigration() };
+    expect(talkingPoints(d.companyById.get("meridian-services")!, d, ws, null).map((p) => p.label)).toEqual(["Acquisitions", "Multi-entity", "Close speed"]);
+    for (const c of d.companies.filter((x) => x.connection === "upload")) expect(talkingPoints(c, d, ws, null).length).toBeLessThanOrEqual(3);
+  });
+  it("flags an invite as stalled only after 14 days with no demo and no sandbox", () => {
+    const m = defaultMigration();
+    expect(isStalled(m["summit-compliance"])).toBe(true); // 19 days, no response
+    expect(isStalled(m["horizon-advisory"])).toBe(false); // opened the sandbox
+    expect(isStalled(m["harbor-operations"])).toBe(false); // demo booked
+    expect(isStalled({ ...m["summit-compliance"], introducedAt: "2026-10-05T10:00:00Z" })).toBe(false); // 9 days
   });
   it("seeds a coherent invite pipeline: every started company has a unique link, rep and send date", () => {
     const pipeline = Object.values(defaultMigration());
