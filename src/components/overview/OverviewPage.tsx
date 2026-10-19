@@ -1,11 +1,13 @@
 "use client";
+import Link from "next/link";
 import { useMemo } from "react";
+import { FileText } from "lucide-react";
 import { comparisonLabel } from "@/lib/engine/periods";
 import { detectInsights } from "@/lib/engine/insights";
 import { describeFilters } from "@/lib/engine/filters";
 import { usePortfolio } from "@/lib/state/hooks";
 import { useApp } from "@/lib/state/store";
-import { Badge, Segmented } from "../ui/primitives";
+import { Badge, Button, Segmented } from "../ui/primitives";
 import { KpiCards } from "./KpiCards";
 import { PerformanceCharts } from "./PerformanceCharts";
 import { PortfolioTable } from "./PortfolioTable";
@@ -36,7 +38,7 @@ export function OverviewPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Portfolio Overview"
+        title="Portfolio"
         subtitle={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-medium text-ink-2">{period.label}</span>
@@ -67,6 +69,11 @@ export function OverviewPage() {
             { value: "average", label: "Avg company", title: "Arithmetic mean of company-level metrics" },
           ]}
         />
+        <Link href="/reporting" data-testid="export-pack">
+          <Button>
+            <FileText className="h-3.5 w-3.5" /> Quarterly pack
+          </Button>
+        </Link>
       </PageHeader>
       {companies.length === 0 ? (
         <div className="rounded-lg border border-line bg-surface p-10 text-center text-sm text-muted">No companies match the current filters. Use Reset in the filter bar.</div>

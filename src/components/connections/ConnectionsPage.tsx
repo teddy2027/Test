@@ -1,63 +1,60 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, Check, Clock, FileSpreadsheet, FileUp, Plug, Plus, Rocket, Timer, X } from "lucide-react";
+import { ArrowRight, Check, Clock, FileSpreadsheet, FileUp, Plug, Rocket, Timer, X } from "lucide-react";
 import { getData } from "@/lib/data";
-import { DEMO_TODAY, lastReportedLabel } from "@/lib/data/calendar";
+import { lastReportedLabel } from "@/lib/data/calendar";
 import type { Company } from "@/lib/data/types";
 import { analyzeCompany } from "@/lib/engine/company";
-import { fmtPct, formatDateTime } from "@/lib/format";
+import { fmtPct } from "@/lib/format";
 import { useScope } from "@/lib/state/hooks";
 import { EFFORT, effortSummary, emptyMigration, isStalled, STAGE_LABEL } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
 import type { MigrationStage } from "@/lib/workspace/types";
-import { AddCompanyDialog } from "../companies/AddCompanyDialog";
-import { ConnectionBadge, FreshnessDot, QualityBadge, StatusPill } from "../fin/fin";
+import { ConnectionBadge, FreshnessDot, StatusPill } from "../fin/fin";
 import { PageHeader } from "../overview/OverviewPage";
 import { UploadDialog } from "../uploads/UploadDialog";
-import { Badge, Button, CardHeader, Select, Tip } from "../ui/primitives";
+import { Badge, Button, CardHeader, Tip } from "../ui/primitives";
 
-const days = (iso: string) => Math.max(0, Math.round((Date.parse(DEMO_TODAY) - Date.parse(iso)) / 86400000));
 
-function DepthCompare({ connected, external }: { connected: Company; external: Company }) {
+/** What each route can deliver — a capability table, not a company comparison. One live example where it matters. */
+function RouteCompare({ connected }: { connected: Company[] }) {
   const { period } = useScope();
-  const submissions = useWorkspace((s) => s.submissions);
-  const a = analyzeCompany(connected.id, period);
-  const b = analyzeCompany(external.id, period);
-  const eff = effortSummary(getData(), submissions, external.id);
-  const rows: { label: string; a: React.ReactNode; b: React.ReactNode }[] = [
-    { label: "Finance system", a: connected.accountingSystem, b: external.accountingSystem },
-    { label: "How figures arrive", a: "Published from the ledger at each close (company-approved scope)", b: "Monthly pack, uploaded by Northbridge" },
-    { label: "Sponsor effort", a: "None", b: `~${(eff.hoursPerMonth || EFFORT.hoursPerPack).toFixed(1)} h / month (est.)${eff.reuploads ? ` · ${eff.reuploads} re-upload${eff.reuploads > 1 ? "s" : ""}` : ""}` },
-    { label: "Last refresh", a: `${formatDateTime(connected.lastUpdated)} (${days(connected.lastUpdated)}d)`, b: `${formatDateTime(external.lastUpdated)} (${days(external.lastUpdated)}d)` },
-    { label: "Data through", a: lastReportedLabel(connected.lastReportedMonth), b: lastReportedLabel(external.lastReportedMonth) },
-    { label: "Close timeline", a: connected.closeDays ? `${connected.closeDays} business days` : "—", b: external.closeDays ? `${external.closeDays} business days` : "—" },
+  const ws = useWorkspace();
+  const data = getData();
+  const eff = effortSummary(data, ws.submissions);
+  const perCompany = eff.uploadCompanies ? eff.hoursPerMonth / eff.uploadCompanies : EFFORT.hoursPerPack;
+  // Example: a DualEntry company whose growth is distorted by an acquisition, where entity ledgers separate organic growth.
+  const example = connected.map((c) => analyzeCompany(c.id, period)).find((a) => a.yoy?.acquisitions.length && a.yoy.organicAvailable);
+  const no = <X className="h-4 w-4 text-faint" />;
+  const yes = <Check className="h-4 w-4 text-pos" />;
+  const rows: { label: string; upload: React.ReactNode; de: React.ReactNode }[] = [
+    { label: "How figures arrive", upload: "Monthly pack, uploaded by Northbridge", de: "Published from the ledger at each close, within the scope the company approves" },
+    { label: "Arrives", upload: `~${eff.avgDaysUpload ? Math.round(eff.avgDaysUpload) : "—"} business days after month-end`, de: `At close · ~${eff.avgDaysDualEntry ? Math.round(eff.avgDaysDualEntry) : "—"} business days` },
+    { label: "Northbridge effort", upload: `~${perCompany.toFixed(1)} h per company per month, plus re-uploads`, de: "None" },
     {
-      label: "Organic growth when M&A distorts the comparison",
-      a: a.yoy?.acquisitions.length ? `${fmtPct(a.yoy.organicRevenueGrowth, { signed: true })} organic vs ${fmtPct(a.yoy.revenueGrowth, { signed: true })} reported` : "Computable from entity ledgers",
-      b: b.yoy?.acquisitions.length ? `Not determinable (reported ${fmtPct(b.yoy.revenueGrowth, { signed: true })})` : "Not determinable from consolidated figures",
+      label: "Organic vs acquired growth",
+      upload: "Not determinable from consolidated figures",
+      de: example?.yoy ? `From entity ledgers — e.g. ${example.company.name}: ${fmtPct(example.yoy.organicRevenueGrowth, { signed: true })} organic vs ${fmtPct(example.yoy.revenueGrowth, { signed: true })} reported` : "From entity ledgers",
     },
-    { label: "Entity P&L + intercompany eliminations", a: <Check className="h-4 w-4 text-pos" />, b: <X className="h-4 w-4 text-faint" /> },
-    { label: "Working-capital / cash bridge", a: <Check className="h-4 w-4 text-pos" />, b: <X className="h-4 w-4 text-faint" /> },
-    { label: "Account-level drill-down", a: <Check className="h-4 w-4 text-pos" />, b: <X className="h-4 w-4 text-faint" /> },
-    { label: "Data confidence", a: <QualityBadge q={connected.dataQuality} />, b: <QualityBadge q={external.dataQuality} /> },
+    { label: "Entity P&L and intercompany eliminations", upload: no, de: yes },
+    { label: "Working-capital and cash bridge", upload: no, de: yes },
+    { label: "Drill-down to accounts", upload: no, de: yes },
   ];
   return (
     <table className="w-full text-sm" data-testid="depth-compare">
       <thead>
         <tr className="border-b border-line text-xs text-muted">
           <th className="w-[30%] px-4 py-2 text-left font-medium" />
-          <th className="px-3 py-2 text-left font-medium">
-            <Link href={`/companies/${connected.id}`} className="text-sm font-semibold text-ink hover:text-brand">
-              {connected.name}
-            </Link>{" "}
-            <ConnectionBadge company={connected} compact />
+          <th className="px-3 py-2 text-left">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+              <FileSpreadsheet className="h-4 w-4 text-muted" /> Uploaded by Northbridge
+            </span>
           </th>
-          <th className="px-3 py-2 text-left font-medium">
-            <Link href={`/companies/${external.id}`} className="text-sm font-semibold text-ink hover:text-brand">
-              {external.name}
-            </Link>{" "}
-            <ConnectionBadge company={external} compact />
+          <th className="px-3 py-2 text-left">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+              <Plug className="h-4 w-4 text-brand" /> DualEntry · live
+            </span>
           </th>
         </tr>
       </thead>
@@ -65,8 +62,8 @@ function DepthCompare({ connected, external }: { connected: Company; external: C
         {rows.map((r) => (
           <tr key={r.label} className="border-b border-line/60 last:border-0">
             <td className="px-4 py-2 text-muted">{r.label}</td>
-            <td className="px-3 py-2 text-ink-2">{r.a}</td>
-            <td className="px-3 py-2 text-ink-2">{r.b}</td>
+            <td className="px-3 py-2 text-ink-2">{r.upload}</td>
+            <td className="px-3 py-2 text-ink-2">{r.de}</td>
           </tr>
         ))}
       </tbody>
@@ -79,15 +76,9 @@ const PIPELINE: MigrationStage[] = ["not_started", "introduced", "call_booked", 
 export function ConnectionsPage() {
   const { period, data } = useScope();
   const ws = useWorkspace();
-  const [add, setAdd] = useState(false);
   const [upload, setUpload] = useState<Company | null>(null);
   const connected = data.companies.filter((c) => c.connection === "dualentry" && c.lastReportedMonth >= 0);
   const uploads = data.companies.filter((c) => c.connection === "upload");
-  const external = uploads.filter((c) => c.lastReportedMonth >= 0);
-  const [left, setLeft] = useState("northstar-systems");
-  const [right, setRight] = useState("meridian-services");
-  const leftCo = data.companyById.get(left) ?? connected[0];
-  const rightCo = data.companyById.get(right) ?? external[0];
   const analyses = useMemo(() => data.companies.map((c) => ({ c, a: analyzeCompany(c.id, period) })), [data.companies, period]);
   const effort = effortSummary(data, ws.submissions);
   const awaiting = data.companies.filter((c) => c.lastReportedMonth < 0).length;
@@ -101,11 +92,7 @@ export function ConnectionsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Data Connections" subtitle="How each company's figures reach Northbridge — and what each route can and can't deliver.">
-        <Button variant="primary" onClick={() => setAdd(true)} data-testid="add-company">
-          <Plus className="h-3.5 w-3.5" /> Add portfolio company
-        </Button>
-      </PageHeader>
+      <PageHeader title="Data Connections" subtitle="How each company's figures reach Northbridge — and what each route can and can't deliver." />
 
       <div className="grid gap-3 md:grid-cols-4">
         {[
@@ -192,28 +179,10 @@ export function ConnectionsPage() {
         </div>
       </div>
 
-      {leftCo && rightCo && (
-        <div className="rounded-lg border border-line bg-surface shadow-card">
-          <CardHeader
-            title="What a ledger connection changes"
-            description="Same portfolio, same period — the difference is how much Northbridge can see, how quickly, and at what effort."
-            actions={
-              <>
-                <Select ariaLabel="Connected company" value={leftCo.id} onChange={setLeft} options={connected.map((c) => ({ value: c.id, label: c.name }))} />
-                <span className="text-xs text-muted">vs</span>
-                <Select ariaLabel="External company" value={rightCo.id} onChange={setRight} options={external.map((c) => ({ value: c.id, label: c.name }))} />
-              </>
-            }
-          />
-          <DepthCompare connected={leftCo} external={rightCo} />
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-subtle/50 px-4 py-2.5">
-            <span className="text-xs text-muted">These are limits of a file, not deliberate restrictions. Moving to DualEntry is the company&apos;s decision.</span>
-            <Link href={`/companies/${rightCo.id}#explore`} className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline" data-testid="explore-from-connections">
-              Explore DualEntry for {rightCo.name} <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
-      )}
+      <div className="rounded-lg border border-line bg-surface shadow-card">
+        <CardHeader title="Upload vs DualEntry" description="What each route can deliver. These are limits of a file, not deliberate restrictions — moving to DualEntry is the company's decision." />
+        <RouteCompare connected={connected} />
+      </div>
 
       <div className="rounded-lg border border-line bg-surface shadow-card" data-testid="connections-table">
         <CardHeader title="Connection inventory" description={`Reporting status for ${period.label} · freshness standard 30 days`} />
@@ -270,7 +239,7 @@ export function ConnectionsPage() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs">
                       {c.connection === "upload" || ws.migration[c.id] ? (
-                        <Link href={`/companies/${c.id}#explore`} className="text-ink-2 hover:text-brand">
+                        <Link href={`/companies/${c.id}#explore`} className="text-ink-2 hover:text-brand" data-testid={`explore-${c.id}`}>
                           {STAGE_LABEL[stageOf(c.id)]}
                         </Link>
                       ) : (
@@ -300,7 +269,6 @@ export function ConnectionsPage() {
         </div>
       </div>
 
-      <AddCompanyDialog open={add} onOpenChange={setAdd} />
       {upload && <UploadDialog company={upload} open onOpenChange={(v) => !v && setUpload(null)} />}
     </div>
   );

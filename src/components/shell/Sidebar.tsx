@@ -2,20 +2,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Building2, ChevronDown, ChevronRight, Columns3, FileText, LayoutDashboard, Lightbulb, Plug, Star, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, LayoutDashboard, Lightbulb, Plug, Star, BookOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import { useApp } from "@/lib/state/store";
 import { useDataVersion } from "@/lib/workspace/store";
 
 const NAV = [
-  { href: "/", label: "Portfolio Overview", icon: LayoutDashboard },
-  { href: "/insights", label: "Cross-Portfolio Insights", icon: Lightbulb },
-  { href: "/compare", label: "Company Comparison", icon: Columns3 },
-  { href: "/companies", label: "Portfolio Companies", icon: Building2 },
+  { href: "/", label: "Portfolio", icon: LayoutDashboard },
+  { href: "/insights", label: "Insights", icon: Lightbulb },
   { href: "/connections", label: "Data Connections", icon: Plug },
-  { href: "/reporting", label: "Reporting", icon: FileText },
 ];
+/** Sub-views reached from Portfolio (company pages, side-by-side comparison, quarterly pack) keep it highlighted. */
+const PORTFOLIO_PATHS = ["/companies", "/compare", "/reporting"];
 
 export function Wordmark() {
   // Text wordmark only: no official logo asset could be retrieved. Drop approved assets into /public/brand to replace.
@@ -39,7 +38,7 @@ export function Sidebar() {
   const watch = useApp((s) => s.watchlist);
   const setMethodologyOpen = useApp((s) => s.setMethodologyOpen);
   const setWatchlistOpen = useApp((s) => s.setWatchlistOpen);
-  const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href) && !(href === "/companies" && path.startsWith("/companies/")));
+  const isActive = (href: string) => (href === "/" ? path === "/" || PORTFOLIO_PATHS.some((p) => path.startsWith(p)) : path.startsWith(href));
 
   return (
     <aside className="no-print sticky top-0 hidden h-screen w-[256px] shrink-0 flex-col border-r border-side-line bg-side text-side-ink lg:flex">

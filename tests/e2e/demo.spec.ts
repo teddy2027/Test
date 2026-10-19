@@ -24,7 +24,7 @@ test("eight-step live demo", async ({ page }) => {
   await expect(page.getByTestId("trend-chart")).toContainText("Fixed cohort of 5 companies");
 
   // Step 3 — Cross-Portfolio Insights: labor growth across services businesses, Meridian highlighted
-  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Cross-Portfolio Insights" }).click();
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Insights", exact: true }).click();
   const spotlight = page.getByTestId("labor-spotlight");
   await expect(spotlight).toContainText("business services companies");
   await expect(spotlight).toContainText("1 above threshold");
@@ -41,7 +41,7 @@ test("eight-step live demo", async ({ page }) => {
   await expect(page.getByTestId("company-kpis")).toContainText("−6.8 pp");
 
   // Step 5 — Compare with asset-light business services peers
-  await page.getByRole("link", { name: /Compare with peers/ }).first().click();
+  await page.getByTestId("compare-peers").click();
   await expect(page.getByTestId("peer-rules")).toContainText("Business Services");
   await expect(page.getByTestId("peer-count")).toHaveText("4");
   const peerTable = page.getByTestId("peer-table");
@@ -60,12 +60,10 @@ test("eight-step live demo", async ({ page }) => {
   // Step 7 — DualEntry advantage: connected vs external, freshness, drill-down, optional migration path
   await page.goto("/connections");
   const depth = page.getByTestId("depth-compare");
-  await expect(depth).toContainText("Northstar Systems");
-  await expect(depth).toContainText("Meridian Services");
-  await expect(depth).toContainText(/organic vs \+23\.\d% reported/);
+  await expect(depth).toContainText(/Northstar Systems: \+8\.\d% organic vs \+23\.\d% reported/);
   await expect(depth).toContainText("Not determinable");
-  await expect(depth).toContainText("Sponsor effort");
-  await page.getByTestId("explore-from-connections").click();
+  await expect(depth).toContainText("Northbridge effort");
+  await page.getByTestId("explore-meridian-services").click();
   const panel = page.getByTestId("explore-panel");
   await expect(panel.getByTestId("talking-points")).toBeVisible();
   await panel.getByTestId("send-invite").click();
@@ -79,7 +77,7 @@ test("eight-step live demo", async ({ page }) => {
   await expect(page.getByTestId("pipeline-panel")).toContainText("Meridian Services");
 
   // Step 8 — Back to the Overview: filters and figures remain consistent
-  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Portfolio Overview" }).click();
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Portfolio", exact: true }).click();
   await expect.poll(() => tableRowCount(page)).toBe(7);
   await expect.poll(() => kpiText(page, "kpi-revenue")).toBe(servicesRevenue);
   await page.getByTestId("reset-filters").click();

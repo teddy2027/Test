@@ -1,14 +1,13 @@
 "use client";
 import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Lightbulb, Sparkles } from "lucide-react";
+import { Lightbulb, Sparkles } from "lucide-react";
 import { detectInsights, type Insight, type InsightCategory, type Severity } from "@/lib/engine/insights";
 import { comparisonLabel } from "@/lib/engine/periods";
 import { useScope } from "@/lib/state/hooks";
 import { PageHeader } from "../overview/OverviewPage";
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/primitives";
 import { AskPanel } from "./AskPanel";
-import { CostBenchmark } from "./CostBenchmark";
 import { InsightDrawer } from "./InsightDrawer";
 import { InsightFeed, LaborSpotlight } from "./InsightFeed";
 
@@ -17,7 +16,8 @@ export function InsightsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = params.get("tab") ?? "insights";
+  // Old cost-benchmarking links fall back to the insights tab (benchmarking now lives on the Portfolio chart).
+  const tab = params.get("tab") === "ask" ? "ask" : "insights";
   const category = (params.get("category") as InsightCategory | null) ?? "all";
   const severity = (params.get("severity") as Severity | null) ?? "all";
   const insightId = params.get("insight");
@@ -38,8 +38,8 @@ export function InsightsPage() {
   return (
     <div>
       <PageHeader
-        title="Cross-Portfolio Insights"
-        subtitle="Find patterns, compare performance, and uncover opportunities across your portfolio."
+        title="Insights"
+        subtitle="What the engine found across the portfolio this period — and answers to your own questions."
       >
         <Badge tone="outline">{period.label} · {comparisonLabel(basis === "budget" ? "yoy" : basis, period)}</Badge>
         <Badge tone="neg">{counts.high} high</Badge>
@@ -49,9 +49,6 @@ export function InsightsPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="insights" data-testid="tab-insights">
             <Lightbulb className="h-3.5 w-3.5" /> Insights <span className="rounded bg-subtle px-1.5 text-xs text-muted">{insights.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="benchmark" data-testid="tab-benchmark">
-            <BarChart3 className="h-3.5 w-3.5" /> Cost benchmarking
           </TabsTrigger>
           <TabsTrigger value="ask" data-testid="tab-ask">
             <Sparkles className="h-3.5 w-3.5" /> Ask Your Portfolio
@@ -67,9 +64,6 @@ export function InsightsPage() {
             setSeverity={(s) => setParam({ severity: s })}
             onOpen={(i: Insight) => setParam({ insight: i.id })}
           />
-        </TabsContent>
-        <TabsContent value="benchmark" className="focus:outline-none">
-          <CostBenchmark companies={companies} period={period} basis={basis} initialSubject={params.get("subject") ?? undefined} />
         </TabsContent>
         <TabsContent value="ask" className="focus:outline-none">
           <AskPanel initialQuestion={params.get("q")} />

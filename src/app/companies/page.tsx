@@ -1,5 +1,6 @@
-import { CompaniesPage } from "@/components/companies/CompaniesPage";
+import { redirect } from "next/navigation";
 
+/** The company list lives on the Portfolio page. */
 export default function Page() {
-  return <CompaniesPage />;
+  redirect("/");
 }

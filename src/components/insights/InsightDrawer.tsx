@@ -289,7 +289,7 @@ function DrawerBody({ insight, universe, onClose }: { insight: Insight; universe
         </Link>
         {c.lastReportedMonth >= 0 && (
           <>
-            <Link href={`/compare?subject=${c.id}`} onClick={onClose}>
+            <Link href={`/companies/${c.id}#peers`} onClick={onClose}>
               <Button>
                 <Columns3 className="h-3.5 w-3.5" /> Compare with peers
               </Button>

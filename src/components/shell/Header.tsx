@@ -14,13 +14,12 @@ import { useDataVersion, useWorkspace } from "@/lib/workspace/store";
 import { Badge, Button, MultiSelect, Popover, PopoverContent, PopoverTrigger, Select, Tip } from "../ui/primitives";
 
 const TITLES: [string, string][] = [
-  ["/insights", "Cross-Portfolio Insights"],
-  ["/compare", "Company Comparison"],
-  ["/companies/", "Company Detail"],
-  ["/companies", "Portfolio Companies"],
+  ["/insights", "Insights"],
+  ["/compare", "Portfolio · Compare"],
+  ["/companies/", "Portfolio · Company"],
   ["/connections", "Data Connections"],
-  ["/reporting", "Reporting"],
-  ["/", "Portfolio Overview"],
+  ["/reporting", "Portfolio · Quarterly pack"],
+  ["/", "Portfolio"],
 ];
 
 function GlobalSearch() {
@@ -42,13 +41,11 @@ function GlobalSearch() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const pages = [
-    { label: "Portfolio Overview", href: "/" },
-    { label: "Cross-Portfolio Insights", href: "/insights" },
-    { label: "Cost Benchmarking", href: "/insights?tab=benchmark" },
+    { label: "Portfolio", href: "/" },
+    { label: "Insights", href: "/insights" },
     { label: "Ask Your Portfolio", href: "/insights?tab=ask" },
-    { label: "Company Comparison", href: "/compare" },
     { label: "Data Connections", href: "/connections" },
-    { label: "Reporting", href: "/reporting" },
+    { label: "Quarterly portfolio pack", href: "/reporting" },
   ];
   const term = q.trim().toLowerCase();
   const results = useMemo(() => {
@@ -393,12 +390,9 @@ export function Header() {
       </div>
       <nav className="thin-scroll flex gap-1 overflow-x-auto border-b border-line bg-surface px-4 py-1.5 lg:hidden" aria-label="Sections">
         {[
-          ["/", "Overview"],
+          ["/", "Portfolio"],
           ["/insights", "Insights"],
-          ["/compare", "Compare"],
-          ["/companies", "Companies"],
-          ["/connections", "Connections"],
-          ["/reporting", "Reporting"],
+          ["/connections", "Data Connections"],
         ].map(([href, label]) => (
           <Link key={href} href={href} className={cn("whitespace-nowrap rounded-md px-2.5 py-1 text-sm", (href === "/" ? path === "/" : path.startsWith(href)) ? "bg-brand-soft font-medium text-brand-ink" : "text-ink-2 hover:bg-subtle")}>
             {label}

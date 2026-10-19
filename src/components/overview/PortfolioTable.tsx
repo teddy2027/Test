@@ -11,7 +11,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Download, GitMerge, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Download, GitCompare, GitMerge, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import type { CompanyAnalysis } from "@/lib/engine/company";
@@ -23,6 +23,9 @@ import { buildCsv, downloadText, slug, type CsvColumn } from "@/lib/export";
 import { fmtMetric, fmtPct, fmtUsd } from "@/lib/format";
 import { CardHeader, MetricLabel, Popover, PopoverContent, PopoverTrigger, Tip, Button } from "../ui/primitives";
 import { Delta, StatusPill, WatchButton } from "../fin/fin";
+import { AddCompanyDialog } from "../companies/AddCompanyDialog";
+
+const MAX_COMPARE = 5;
 
 interface Row {
   a: CompanyAnalysis;
@@ -47,6 +50,11 @@ interface Row {
   status: string;
   arr: number | null;
   laborIntensity: number | null;
+  cogsRatio: number | null;
+  gaRatio: number | null;
+  smRatio: number | null;
+  revenuePerEmployee: number | null;
+  hasData: boolean;
   system: string;
 }
 
@@ -64,7 +72,10 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
   const gb = basis === "budget" ? "yoy" : basis;
   const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
   const [query, setQuery] = useState("");
-  const [visibility, setVisibility] = useState<VisibilityState>({ arr: false, laborIntensity: false, revenueVsBudget: false, system: false });
+  const [visibility, setVisibility] = useState<VisibilityState>({ arr: false, laborIntensity: false, cogsRatio: false, gaRatio: false, smRatio: false, revenuePerEmployee: false, revenueVsBudget: false, system: false });
+  const [selected, setSelected] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
+  const toggleSelect = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= MAX_COMPARE ? cur : [...cur, id]));
 
   const rows: Row[] = useMemo(
     () =>
@@ -94,6 +105,11 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
           status: a.current.status,
           arr: m.arr,
           laborIntensity: m.laborIntensity,
+          cogsRatio: m.cogsRatio,
+          gaRatio: m.gaRatio,
+          smRatio: m.smRatio,
+          revenuePerEmployee: m.revenuePerEmployee,
+          hasData: a.company.lastReportedMonth >= 0,
           system: a.company.accountingSystem,
         };
       }),
@@ -123,7 +139,19 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
       enableHiding: false,
       meta: { title: "Portfolio Company" },
       cell: ({ row }) => (
-        <div className="flex min-w-[190px] items-center gap-1.5">
+        <div className="flex min-w-[210px] items-center gap-1.5">
+          <Tip content={!row.original.hasData ? "No figures yet — can be compared after the first upload" : selected.includes(row.original.id) ? "Remove from comparison" : selected.length >= MAX_COMPARE ? `Compare up to ${MAX_COMPARE} companies` : "Select to compare"}>
+            <input
+              type="checkbox"
+              aria-label={`Select ${row.original.name} to compare`}
+              checked={selected.includes(row.original.id)}
+              disabled={!row.original.hasData || (!selected.includes(row.original.id) && selected.length >= MAX_COMPARE)}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => toggleSelect(row.original.id)}
+              className="h-3.5 w-3.5 cursor-pointer accent-[rgb(var(--brand))] disabled:cursor-not-allowed disabled:opacity-30"
+              data-testid={`select-${row.original.id}`}
+            />
+          </Tip>
           <WatchButton id={row.original.id} />
           <div className="min-w-0">
             <div className="truncate font-medium text-ink group-hover:text-brand">{row.original.name}</div>
@@ -168,6 +196,10 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
     num("ebitdaVsBudget", <MetricLabel k="ebitdaVsBudget" label="EBITDA vs Bud." />, "pct", { delta: true, metricKey: "ebitdaVsBudget", title: "EBITDA vs budget" }),
     num("revenueVsBudget", <MetricLabel k="revenueVsBudget" label="Rev. vs Bud." />, "pct", { delta: true, metricKey: "revenueVsBudget", title: "Revenue vs budget" }),
     num("laborIntensity", <MetricLabel k="laborIntensity" />, "pct", { title: "Labor intensity" }),
+    num("cogsRatio", <MetricLabel k="cogsRatio" label="Cost of services %" />, "pct", { title: "Cost of services / revenue" }),
+    num("gaRatio", <MetricLabel k="gaRatio" label="G&A %" />, "pct", { title: "G&A / revenue" }),
+    num("smRatio", <MetricLabel k="smRatio" label="S&M %" />, "pct", { title: "S&M / revenue" }),
+    num("revenuePerEmployee", <MetricLabel k="revenuePerEmployee" label="Rev. / employee" />, "usdk", { title: "Revenue per employee" }),
     num("arr", <MetricLabel k="arr" />, "usd", { title: "ARR" }),
     { id: "system", accessorKey: "system", header: "Finance system", meta: { title: "Finance system" } },
     {
@@ -224,7 +256,7 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
   const totRev = sumOf("revenue");
   const totals: Record<string, React.ReactNode> = {
     name: (
-      <div className="pl-6">
+      <div className="pl-11">
         <div className="font-semibold text-ink">Portfolio (Σ)</div>
         <div className="text-[11px] font-normal text-muted">{totalsCohort.length} of {s.analyses.length} companies with complete data</div>
       </div>
@@ -246,6 +278,21 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
         description={`${p.label} · growth ${comparisonLabel(gb, p)}${basis === "budget" ? " (budget variance in dedicated columns)" : ""} · USD millions · click a row to open the company`}
         actions={
           <>
+            {selected.length > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-muted">
+                {selected.length} selected
+                <button className="text-brand hover:underline" onClick={() => setSelected([])}>
+                  Clear
+                </button>
+              </span>
+            )}
+            <Tip content={selected.length < 2 ? `Tick 2–${MAX_COMPARE} companies to compare them side by side` : "Open a side-by-side comparison"}>
+              <span>
+                <Button size="sm" variant={selected.length >= 2 ? "primary" : "secondary"} disabled={selected.length < 2} onClick={() => router.push(`/compare?ids=${selected.join(",")}`)} data-testid="compare-selected">
+                  <GitCompare className="h-3.5 w-3.5" /> Compare{selected.length >= 2 ? ` (${selected.length})` : ""}
+                </Button>
+              </span>
+            </Tip>
             <label className="flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2 shadow-card">
               <Search className="h-3.5 w-3.5 text-muted" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter table…" aria-label="Filter table" className="w-36 bg-transparent text-sm focus:outline-none" />
@@ -271,6 +318,9 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
             </Popover>
             <Button size="sm" onClick={exportCsv} data-testid="export-csv">
               <Download className="h-3.5 w-3.5" /> Export CSV
+            </Button>
+            <Button size="sm" onClick={() => setAdding(true)} data-testid="add-company">
+              <Plus className="h-3.5 w-3.5" /> Add company
             </Button>
           </>
         }
@@ -350,6 +400,7 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
           <GitMerge className="h-3 w-3 text-warn" /> M&A = comparison spans an acquisition.
         </span>
       </div>
+      <AddCompanyDialog open={adding} onOpenChange={setAdding} />
     </div>
   );
 }

@@ -19,9 +19,10 @@ import { InsightDrawer } from "../insights/InsightDrawer";
 import { InsightCard } from "../insights/InsightFeed";
 import { UploadDialog } from "../uploads/UploadDialog";
 import { ExplorePanel, SharePanel, UploadsPanel } from "./DataPanels";
+import { PeerSection } from "./PeerSection";
 import { STAGE_LABEL } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
-import { Badge, Button, CardHeader, MetricLabel } from "../ui/primitives";
+import { Badge, CardHeader, MetricLabel } from "../ui/primitives";
 import { Statements } from "./Statements";
 
 function Kpi({ k, label, value, delta, deltaFormat = "pct", deltaKey, sub }: { k: string; label?: string; value: string; delta?: number | null; deltaFormat?: "pct" | "pp"; deltaKey?: string; sub?: string }) {
@@ -229,7 +230,7 @@ export function CompanyPage({ id }: { id: string }) {
   return (
     <div className="space-y-4" data-testid="company-page">
       <Link href="/" className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
-        <ArrowLeft className="h-3 w-3" /> Portfolio Overview
+        <ArrowLeft className="h-3 w-3" /> Portfolio
       </Link>
 
       {/* Header */}
@@ -249,11 +250,9 @@ export function CompanyPage({ id }: { id: string }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {company.lastReportedMonth >= 0 && (
-              <Link href={`/compare?subject=${company.id}`} data-testid="compare-peers">
-                <Button>
-                  <Columns3 className="h-3.5 w-3.5" /> Compare with peers
-                </Button>
-              </Link>
+              <a href="#peers" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink shadow-card hover:bg-subtle" data-testid="compare-peers">
+                <Columns3 className="h-3.5 w-3.5" /> Compare with peers <ArrowDown className="h-3 w-3" />
+              </a>
             )}
             {company.connection === "upload" && (
               <a href="#explore" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand/15 bg-brand-soft px-3 text-sm font-medium text-brand-ink hover:bg-brand-soft/70" data-testid="explore-dualentry">
@@ -371,6 +370,8 @@ export function CompanyPage({ id }: { id: string }) {
           <SeriesChart data={series as unknown as Record<string, unknown>[]} series={[{ key: "revenueVsBudget", name: "Revenue vs budget" }, { key: "ebitdaVsBudget", name: "EBITDA vs budget", color: SERIES_HEX[1] }]} format="pct" kind="bar" height={210} />
         </ChartCard>
       </div>
+
+      <PeerSection company={company} period={period} basis={basis} />
 
       <Statements company={company} period={period} current={a} />
 

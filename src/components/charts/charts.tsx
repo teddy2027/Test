@@ -185,6 +185,7 @@ export function RankBars({
   onSelect,
   height,
   colorBySign = false,
+  domain,
 }: {
   data: { label: string; value: number | null; id?: string; note?: string }[];
   format: MetricFormat;
@@ -194,6 +195,8 @@ export function RankBars({
   onSelect?: (id: string) => void;
   height?: number;
   colorBySign?: boolean;
+  /** Fixed x-axis range, so several charts (e.g. one per group) share one scale. */
+  domain?: [number, number];
 }) {
   const rows = data.filter((d) => d.value !== null).map((d) => ({ ...d, fullLabel: d.label }));
   const h = height ?? Math.max(120, rows.length * 30 + 36);
@@ -201,7 +204,7 @@ export function RankBars({
     <ResponsiveContainer width="100%" height={h}>
       <BarChart data={rows} layout="vertical" margin={{ top: 22, right: 56, left: 8, bottom: 4 }} barCategoryGap={6}>
         <CartesianGrid stroke={GRID} horizontal={false} />
-        <XAxis type="number" tickFormatter={axisFmt(format)} tickLine={false} axisLine={false} domain={[(min: number) => Math.min(0, min), (max: number) => Math.max(0, max)]} />
+        <XAxis type="number" tickFormatter={axisFmt(format)} tickLine={false} axisLine={false} domain={domain ?? [(min: number) => Math.min(0, min), (max: number) => Math.max(0, max)]} />
         <YAxis type="category" dataKey="label" width={142} tickLine={false} axisLine={false} tick={NoWrapTick} interval={0} />
         <Tooltip content={<ChartTooltip format={format} labels={{ value: "Value" }} />} cursor={{ fill: "rgba(15,23,42,0.04)" }} />
         <ReferenceLine x={0} stroke={AXIS} />

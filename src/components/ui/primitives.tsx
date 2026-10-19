@@ -303,7 +303,8 @@ export function Select({
 }: {
   value: string;
   onChange: (v: string) => void;
-  options: { value: string; label: string; disabled?: boolean }[];
+  /** Options with a `group` are rendered under that heading (optgroup). */
+  options: { value: string; label: string; disabled?: boolean; group?: string }[];
   className?: string;
   ariaLabel: string;
   prefix?: React.ReactNode;
@@ -319,11 +320,22 @@ export function Select({
         onChange={(e) => onChange(e.target.value)}
         className="h-full cursor-pointer appearance-none bg-transparent pl-2 pr-7 text-sm font-medium text-ink focus:outline-none"
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} disabled={o.disabled}>
-            {o.label}
-          </option>
-        ))}
+        {[...new Set(options.map((o) => o.group))].map((g) => {
+          const opts = options
+            .filter((o) => o.group === g)
+            .map((o) => (
+              <option key={o.value} value={o.value} disabled={o.disabled}>
+                {o.label}
+              </option>
+            ));
+          return g ? (
+            <optgroup key={g} label={g}>
+              {opts}
+            </optgroup>
+          ) : (
+            opts
+          );
+        })}
       </select>
       <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-muted" />
     </label>

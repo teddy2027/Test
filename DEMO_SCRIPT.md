@@ -8,7 +8,7 @@
 
 ## Step 1 — Portfolio dashboard (≈2 min)
 
-Open **Portfolio Overview** (default: Q3 2026, vs same quarter last year).
+Open **Portfolio** (default: Q3 2026, vs same quarter last year). The menu has three items: Portfolio, Insights, Data Connections.
 
 Point out:
 - **Portfolio revenue $171.7M**, aggregate growth **+16.9%** vs average company growth **+17.2%** (toggle *Aggregate (Σ) / Avg company* — they are different metrics and are always labelled). "2 M&A-affected" is flagged on the growth card.
@@ -16,6 +16,8 @@ Point out:
 - **Companies reporting 10 / 12**: Apex Workforce has not submitted Q3; BluePeak submitted 2 of 3 months. They are excluded from totals and like-for-like comparisons, and the coverage is shown on every card ("Like-for-like: 10 of 12").
 - **Signals row**: *Needs attention* (Meridian, Summit, Crestpoint, Horizon, Cedar), *Outperforming* (Beacon, Lattice), *Incomplete or stale data* (Apex, BluePeak, Summit's reclassification).
 - **Reconciliation**: the table's *Portfolio (Σ)* footer equals the KPI card ($171.7M). Hover any (i) for metric definitions; *Methodology* in the sidebar runs the live data-integrity checks.
+
+- **Comparison chart** (right of the trend): set *Compare* to **Labor intensity** and *Group by* to **Business model** — subscription software median 49.0% (5 companies), recurring managed services 62.7% (Meridian highest at 73.1%), project-based services shown but marked *too small to benchmark* (2 companies). This is the cost benchmarking; any bar opens the company.
 
 Optional: switch the comparison to **vs Budget** (portfolio EBITDA −5.1% vs budget, 10 of 12 with budgets).
 
@@ -25,15 +27,13 @@ Filter bar → **Industry → Business Services**.
 
 Everything updates together: 7 companies in the table, revenue **$86.9M**, aggregate growth **+11.6%** vs average **+9.7%**, EBITDA margin **15.4% (−3.1 pp)**, reporting **5 / 7**, and the trend chart states its fixed cohort ("Fixed cohort of 5 companies…").
 
-## Step 3 — Cross-Portfolio Insights (≈2 min)
+## Step 3 — Insights (≈2 min)
 
-Sidebar → **Cross-Portfolio Insights**. The filter carries over.
+Sidebar → **Insights**. The filter carries over.
 
 - The **Labor cost growth vs revenue growth** spotlight compares the services businesses: **Meridian Services labor +22.2% vs revenue +11.3% (+10.9 pp)** — the only one above the 8 pp threshold (highlighted; points above the diagonal grew labor faster than revenue).
 - Insight cards are grouped by Growth / Profitability / Cost Efficiency / Cash Flow / Reporting Quality. Read the Meridian card: *"Meridian Services labor costs grew 22.2% while revenue increased 11.3% (Q3 2026 vs Q3 2025). The 10.9-percentage-point gap merits investigation."*
 - Click it. The drill-down shows the finding with supporting figures (headcount growth and cost per employee decomposition), **indexed KPI history**, **comparison with business-services peers** (median, n), **underlying components**, **possible explanations** (framed as hypotheses — not causes), and **data source/period context** (NetSuite upload, refreshed Oct 12).
-
-Optional: **Cost benchmarking** tab — labor cost growth by company with Meridian's sector cohort highlighted and the peer median line; group medians by sector/fund/revenue band/vintage/business model.
 
 ## Step 4 — Inspect Meridian (≈1.5 min)
 
@@ -46,7 +46,7 @@ In the drawer → **Inspect company data**.
 
 ## Step 5 — Compare with peers (≈1.5 min)
 
-Header → **Compare with peers** (opens *Company vs peer cohort*).
+Header → **Compare with peers** (scrolls to the peers section on the same page; *Peers by* can switch to business model, revenue band, fund or vintage).
 
 - Peer rule: Sector = Business Services, subject excluded, complete Q3 data only → **4 eligible peers** (Horizon, Summit, Crestpoint, Harbor); Apex and BluePeak shown as not eligible; **small-cohort warning** displayed.
 - Relative performance: labor cost growth **22.2% vs 11.1% median**, labor intensity **73.1% vs 69.3% (+3.8 pp)**, EBITDA margin **11.4% vs 13.1%** after a **−6.8 pp** change vs a −1.2 pp peer median, revenue growth **11.3% vs 8.5%** (Meridian is growing faster — the issue is cost, not demand).
@@ -81,18 +81,18 @@ Other questions that work:
 
 Sidebar → **Data Connections**.
 
-- *What a ledger connection changes*: **Northstar Systems (DualEntry, synced today, 6-day close)** vs **Meridian Services (NetSuite upload, 14-day close)**. Northstar acquired Vantage in May 2026: reported growth +23.2% but **organic growth +8.1%** computed from entity ledgers. For an uploaded company, organic growth is *not determinable*. Entity P&L with intercompany eliminations, working-capital bridge and account-level drill-down are only available with the ledger connection.
+- **Upload vs DualEntry**: what each route delivers — arrival (~15 vs ~5 business days), Northbridge effort, and depth. Live example: Northstar acquired Vantage in May 2026, reported growth +23.2% but **organic growth +8.1%** from entity ledgers; for an uploaded company organic growth is *not determinable*. Entity P&L with eliminations, working-capital bridge and account drill-down come only with DualEntry.
 - Optional: open Northstar → *Entities & consolidation* (4 entities, eliminations, Vantage flagged as acquired) and *Cash Flow* (interest, tax and working-capital lines).
-- The *Sponsor effort* row and the **Upload effort** panel make the cost of the upload path visible: ~1.5 hours per monthly pack, re-uploads counted, days after month-end. The upload path is competent — template, example file, validation, preview, version history — but a file can only deliver what a file can deliver: no daily data, no entity books, no account drill-down, no organic split, never zero effort.
+- The **Manual reporting effort** panel make the cost of the upload path visible: ~1.5 hours per monthly pack, re-uploads counted, days after month-end. The upload path is competent — template, example file, validation, preview, version history — but a file can only deliver what a file can deliver: no daily data, no entity books, no account drill-down, no organic split, never zero effort.
 - **Migration pipeline**: where each upload company stands (Harbor has a demo booked and opened the sandbox, Cedar is evaluating, Horizon opened the sandbox but has not booked, Summit has not responded in 19 days and shows as *Stalled*).
-- Click **Explore DualEntry for Meridian Services**. The panel shows why it's worth it for Meridian, built only from data Northbridge already has (none of it goes into the invite).
+- In the inventory, click Meridian's *Explore DualEntry* status (**Not started**). The panel shows why it's worth it for Meridian, built only from data Northbridge already has (none of it goes into the invite).
 - **Send DualEntry invite** → the email goes from Portfolio Intelligence in Alex Morgan's name to the CFO, CC the routed DualEntry rep (Daniel Okafor — 4 entities, ~$130M revenue → enterprise team). Edit the note; the link is added automatically: **Book a demo** and **Open a sandbox**, one link unique to Meridian. Press **Send invite**.
 - **Open the CFO's view** (simulated DualEntry page): name and email pre-filled. **Open my sandbox** (sample data only), then pick a demo slot → **Confirm demo**. Back in Portfolio Intelligence the panel shows *Demo booked* and *Sandbox opened* on its own. Later stages (demo held, evaluating, migrating, on DualEntry) would arrive from DualEntry; a demo control simulates them. Northbridge sees milestones only, never the content of DualEntry's conversations or sandbox activity.
-- Optional: **Add portfolio company** (Data Connections or Portfolio Companies). *On DualEntry* → a data-share request the company approves inside DualEntry (open the simulated approval page: level of detail, entities, statements, closed months only, hidden accounts, audience, preview as Northbridge, second approver for entity-level books). *Not on DualEntry* → the company appears as *Awaiting data* until Northbridge uploads its first pack.
+- Optional: **Add company** (on Portfolio, above the table). *On DualEntry* → a data-share request the company approves inside DualEntry (open the simulated approval page: level of detail, entities, statements, closed months only, hidden accounts, audience, preview as Northbridge, second approver for entity-level books). *Not on DualEntry* → the company appears as *Awaiting data* until Northbridge uploads its first pack.
 
 ## Step 8 — Close (≈30 s)
 
-Sidebar → **Portfolio Overview**. The Business Services filter is still applied and the figures match step 2 ($86.9M). Press **Reset** — back to $171.7M across 12 companies. Close on the three layers: *visibility* (one financial view), *intelligence* (cross-portfolio insights and benchmarks), *accounting-native advantage* (deeper, faster data where companies run on DualEntry).
+Sidebar → **Portfolio**. The Business Services filter is still applied and the figures match step 2 ($86.9M). Press **Reset** — back to $171.7M across 12 companies. Close on the three layers: *visibility* (one financial view), *intelligence* (cross-portfolio insights and benchmarks), *accounting-native advantage* (deeper, faster data where companies run on DualEntry).
 
 ---
 

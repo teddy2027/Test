@@ -285,7 +285,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         whyItMatters:
           "Aggregate growth weights companies by size, so the largest platforms dominate; average company growth treats each company equally. A gap between them signals that growth is concentrated in a few large (or small) businesses.",
         explore: [
-          { label: "Portfolio Overview", href: "/", kind: "page" },
+          { label: "Portfolio", href: "/", kind: "page" },
           ...rows.slice(0, 3).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const })),
         ],
         methodology: [
@@ -365,7 +365,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
           .sort((x, y) => (y.values.value as number) - (x.values.value as number)),
         chart: { type: "bar", title: `${label} by company`, format: "usd", data: elig.map((a) => ({ label: a.company.name, value: a.current.metrics[field], companyId: a.company.id })) },
         whyItMatters: "Totals are management-view sums of operating companies and are dominated by the largest platforms.",
-        explore: [{ label: "Portfolio Overview", href: "/", kind: "page" }],
+        explore: [{ label: "Portfolio", href: "/", kind: "page" }],
         methodology: ["Σ of company values for companies with complete data in the period. Not GAAP-consolidated fund financials.", ...exclusionNotes(analyses, curReason)],
         followUps: ["What was portfolio revenue growth in Q3 2026?", "What is our average EBITDA margin?"],
       };
@@ -422,7 +422,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
           "When labor grows faster than revenue in a people-intensive business, margin compression usually follows. The gap is a signal to investigate — staffing levels, pay rates, utilization and pricing — not proof of a specific cause.",
         explore: [
           ...faster.slice(0, 3).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const })),
-          ...(faster[0] ? [{ label: `Compare ${faster[0].label} with peers`, href: `/compare?subject=${faster[0].companyId}`, kind: "compare" as const }] : []),
+          ...(faster[0] ? [{ label: `Compare ${faster[0].label} with peers`, href: `/companies/${faster[0].companyId}#peers`, kind: "compare" as const }] : []),
           { label: "Cost benchmarking", href: "/insights?tab=benchmark", kind: "page" },
         ],
         methodology: [
@@ -786,7 +786,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         rows: rows.map((r) => ({ ...r, values: Object.fromEntries(Object.entries(r.values).map(([k, v]) => [k, fmtMetric(v as N, metrics.find((m) => m[0] === r.note)![2])])) as Record<string, string>, note: undefined })),
         chart: { type: "bar", title: "EBITDA margin", format: "pct", data: as.map((a) => ({ label: a.company.name, value: a.current.metrics.ebitdaMargin, companyId: a.company.id })) },
         whyItMatters: "Normalized metrics (growth, margins, cost ratios) are compared rather than absolute size, so a larger company is not implied to be better run.",
-        explore: [{ label: "Open in Company Comparison", href: `/compare?ids=${ids.join(",")}`, kind: "compare" }, ...as.map((a) => ({ label: a.company.name, href: ROUTE(a.company.id), kind: "company" as const }))],
+        explore: [{ label: "Compare side by side", href: `/compare?ids=${ids.join(",")}`, kind: "compare" }, ...as.map((a) => ({ label: a.company.name, href: ROUTE(a.company.id), kind: "company" as const }))],
         methodology: ["All metrics from the same period and comparison basis for each company.", ...as.filter((a) => curReason(a)).map((a) => `${a.company.name}: ${curReason(a)}.`)],
         followUps: [`Compare ${x.company.name} with other ${x.company.sector === "Software" ? "software" : "services"} businesses`],
       };
@@ -855,7 +855,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         whyItMatters: "Peer medians show what is achievable for similar businesses inside the same portfolio, which makes gaps more actionable than comparisons with external benchmarks of unknown definition.",
         explore: [
           { label: `Open ${subj.name}`, href: ROUTE(id), kind: "company" },
-          { label: "Open full peer comparison", href: `/compare?subject=${id}`, kind: "compare" },
+          { label: "Open full peer comparison", href: `/companies/${id}#peers`, kind: "compare" },
           ...bm.peers.slice(0, 3).map((p) => ({ label: p.company.name, href: ROUTE(p.company.id), kind: "company" as const })),
         ],
         methodology: [`Peer rule: ${bm.rule}`, "Benchmark statistic: median (robust to outliers); average shown for reference.", ...bm.warnings, ...bm.ineligible.map((x) => `Not eligible — ${x.company.name}: ${x.reason}.`)],
@@ -959,7 +959,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         rows: ins.map((i) => ({ label: i.title, values: { detail: i.finding }, tone: i.severity === "positive" ? "pos" : "neg" })),
         chart: null,
         whyItMatters: "Company summaries combine the period's key metrics with the insight engine's flags for that company.",
-        explore: [{ label: `Open ${a.company.name}`, href: ROUTE(id), kind: "company" }, { label: "Compare with peers", href: `/compare?subject=${id}`, kind: "compare" }],
+        explore: [{ label: `Open ${a.company.name}`, href: ROUTE(id), kind: "company" }, { label: "Compare with peers", href: `/companies/${id}#peers`, kind: "compare" }],
         methodology: ["Figures from the company's submitted or connected ledger data; insight thresholds as configured in the insight engine."],
         followUps: [`Compare ${a.company.name} with other ${a.company.sector === "Software" ? "software" : "services"} businesses`],
       };
