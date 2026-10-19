@@ -1,21 +1,21 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Download, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { getData } from "@/lib/data";
-import type { Company } from "@/lib/data/types";
 import { median, type N } from "@/lib/engine/core";
 import { analyzeCompany } from "@/lib/engine/company";
 import { benchmarkMetric, buildBenchmark, defaultDimension, DIMENSION_LABELS, type CohortDimension } from "@/lib/engine/benchmark";
 import { COMPARE_METRICS, CM, type CompareMetric } from "@/lib/engine/compareMetrics";
 import { favorability } from "@/lib/engine/metrics";
-import { comparisonLabel, trendQuarters, type ComparisonBasis, type Period } from "@/lib/engine/periods";
+import { comparisonLabel, trendQuarters } from "@/lib/engine/periods";
+import { useScope } from "@/lib/state/hooks";
 import { buildCsv, downloadText, slug } from "@/lib/export";
 import { fmtMetric } from "@/lib/format";
 import { MultiLine, RankBars, SERIES_HEX } from "../charts/charts";
 import { Delta } from "../fin/fin";
-import { Badge, CardHeader, MetricLabel, Button, Select, Tip } from "../ui/primitives";
+import { Badge, CardHeader, MetricLabel, Button, Segmented, Select, Tip } from "../ui/primitives";
 
 const TREND_METRICS = ["revenueGrowth", "ebitdaMargin", "grossMargin", "laborIntensity", "gaRatio", "cashConversion", "revenue"];
 const PEER_GROUPS: CompareMetric["group"][] = ["Growth", "Profitability", "Cost efficiency", "Cash flow", "Budget"];
@@ -26,15 +26,33 @@ function deltaFormat(m: CompareMetric) {
   return m.format === "pct" || m.format === "pp" ? "pp" : m.format;
 }
 
-/** "How does this company compare with similar companies?" — lives on the company page (#peers). */
-export function PeerSection({ company, period, basis }: { company: Company; period: Period; basis: ComparisonBasis }) {
+type PeerSource = "portfolio" | "filters";
+
+/** One company against similar companies: peer rule, n, medians, rank, trend vs peer median. */
+export function PeersMode() {
+  const { companies, period, basis, data } = useScope();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const gb = basis === "prior" ? "prior" : "yoy";
-  const data = getData();
+  const withData = useMemo(() => data.companies.filter((c) => c.lastReportedMonth >= 0), [data.companies]);
+  const subjectParam = params.get("subject");
+  const company = withData.find((c) => c.id === subjectParam) ?? withData.find((c) => c.id === "meridian-services") ?? withData[0];
+  const source: PeerSource = params.get("peers") === "filters" ? "filters" : "portfolio";
+  const set = (patch: Record<string, string>) => {
+    const next = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(patch)) next.set(k, v);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  };
   const [dim, setDim] = useState<CohortDimension>(() => defaultDimension(company));
   const [trendKey, setTrendKey] = useState("ebitdaMargin");
   const [barKey, setBarKey] = useState("laborIntensity");
-  // Peers are drawn from every company with figures, independent of the portfolio filters.
-  const universe = useMemo(() => data.companies.filter((c) => c.lastReportedMonth >= 0), [data.companies]);
+  // Default: peers from every company with figures. Optionally limit peers to the companies in the current filters.
+  const universe = useMemo(() => {
+    if (source === "portfolio") return withData;
+    const inScope = companies.filter((c) => c.lastReportedMonth >= 0);
+    return inScope.some((c) => c.id === company.id) ? inScope : [...inScope, company];
+  }, [source, withData, companies, company]);
   const bm = useMemo(() => buildBenchmark(company.id, dim, universe, period), [company.id, dim, universe, period]);
   const metrics = COMPARE_METRICS.filter((m) => PEER_GROUPS.includes(m.group));
   const exportCsv = () =>
@@ -53,26 +71,31 @@ export function PeerSection({ company, period, basis }: { company: Company; peri
       ),
     );
   return (
-    <section id="peers" className="scroll-mt-4 space-y-3" data-testid="peer-section">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-ink">How {company.name} compares with peers</h2>
-          <p className="text-xs text-muted">
-            {period.label} · growth {comparisonLabel(gb, period)} · peers from all portfolio companies with figures
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            ariaLabel="Peer cohort"
-            prefix="Peers by"
-            value={dim}
-            onChange={(v) => setDim(v as CohortDimension)}
-            options={(["sector", "businessModel", "revenueBand", "fund", "vintage", "portfolio"] as CohortDimension[]).map((d) => ({ value: d, label: DIMENSION_LABELS[d] }))}
-          />
-          <Button size="sm" onClick={exportCsv} data-testid="peer-export">
-            <Download className="h-3.5 w-3.5" /> Export CSV
-          </Button>
-        </div>
+    <section className="space-y-3" data-testid="peer-section">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2.5 shadow-card" data-testid="peer-controls">
+        <Select ariaLabel="Company" prefix="Company" value={company.id} onChange={(v) => set({ subject: v })} options={withData.map((c) => ({ value: c.id, label: c.name }))} />
+        <Select
+          ariaLabel="Peer cohort"
+          prefix="Peers by"
+          value={dim}
+          onChange={(v) => setDim(v as CohortDimension)}
+          options={(["sector", "businessModel", "revenueBand", "fund", "vintage", "portfolio"] as CohortDimension[]).map((d) => ({ value: d, label: DIMENSION_LABELS[d] }))}
+        />
+        <Segmented<PeerSource>
+          ariaLabel="Peers from"
+          value={source}
+          onChange={(v) => set({ peers: v })}
+          options={[
+            { value: "portfolio", label: "Whole portfolio", title: "Peers from every company with figures" },
+            { value: "filters", label: "Current filters", title: "Peers only from the companies in the filter bar" },
+          ]}
+        />
+        <span className="text-xs text-muted">
+          {period.label} · growth {comparisonLabel(gb, period)}
+        </span>
+        <Button size="sm" onClick={exportCsv} className="no-print ml-auto" data-testid="peer-export">
+          <Download className="h-3.5 w-3.5" /> Export CSV
+        </Button>
       </div>
       <CohortMode bm={bm} metrics={metrics} gb={gb} trendKey={trendKey} setTrendKey={setTrendKey} barKey={barKey} setBarKey={setBarKey} periodEnd={period.end} />
     </section>

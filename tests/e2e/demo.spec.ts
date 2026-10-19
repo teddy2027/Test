@@ -6,31 +6,32 @@ test("eight-step live demo", async ({ page }) => {
   test.setTimeout(120_000);
   const errors = await trackErrors(page);
 
-  // Step 1 — Portfolio dashboard: 12 companies, reconciled aggregates
+  // Step 1 — Portfolio: KPIs reconcile with the fund roll-up
   await page.goto("/");
   await waitForApp(page);
-  expect(await tableRowCount(page)).toBe(12);
   const totalRevenue = await kpiText(page, "kpi-revenue");
   expect(totalRevenue).toMatch(/^\$\d+\.\dM$/);
-  const footer = page.locator('[data-testid="portfolio-table"] tfoot');
-  await expect(footer).toContainText(totalRevenue!);
+  const fundTotal = page.getByTestId("fund-total");
+  await expect(fundTotal).toContainText(totalRevenue!);
+  await expect(fundTotal).toContainText("10 / 12");
 
-  // Step 2 — Filter by Business Services: table, KPIs and charts update
+  // Step 2 — Filter by Business Services: KPIs, trend cohort and funds update
   await setSector(page, "Business Services");
-  expect(await tableRowCount(page)).toBe(7);
   await expect.poll(() => kpiText(page, "kpi-revenue")).not.toBe(totalRevenue);
   const servicesRevenue = await kpiText(page, "kpi-revenue");
-  await expect(footer).toContainText(servicesRevenue!);
+  await expect(fundTotal).toContainText(servicesRevenue!);
   await expect(page.getByTestId("trend-chart")).toContainText("Fixed cohort of 5 companies");
 
-  // Step 3 — Cross-Portfolio Insights: labor growth across services businesses, Meridian highlighted
-  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Insights", exact: true }).click();
-  const spotlight = page.getByTestId("labor-spotlight");
-  await expect(spotlight).toContainText("business services companies");
-  await expect(spotlight).toContainText("1 above threshold");
-  await expect(spotlight).toContainText(/Meridian Services: labor \+22\.\d% vs revenue \+11\.\d%/);
+  // Step 3 — Companies: findings ranked by company, Meridian first; labor benchmark across services businesses
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Companies", exact: true }).click();
+  await expect.poll(() => tableRowCount(page)).toBe(7);
+  await page.getByTestId("tab-findings").click();
+  const firstRow = page.getByTestId("findings-attention").getByTestId("findings-row").first();
+  await expect(firstRow).toHaveAttribute("data-company", "meridian-services");
+  await page.getByTestId("expand-meridian-services").click();
   const card = page.locator('[data-testid="insight-card"][data-rule="labor_outpacing_revenue"][data-company="meridian-services"]');
   await expect(card).toContainText("merits investigation");
+  await expect(card).toContainText(/labor costs grew 22\.\d% while revenue increased 11\.\d%/);
 
   // Step 4 — Inspect Meridian: labor trend, revenue trend, EBITDA margin
   await card.click();
@@ -48,7 +49,7 @@ test("eight-step live demo", async ({ page }) => {
   for (const m of ["Labor intensity", "EBITDA margin", "Revenue growth"]) await expect(peerTable).toContainText(m);
 
   // Step 6 — Ask Your Portfolio
-  await page.goto("/insights?tab=ask");
+  await page.goto("/companies?tab=ask");
   await page.getByTestId("ask-input").fill("Which services companies have labor costs growing faster than revenue, and by how much?");
   await page.getByTestId("ask-submit").click();
   const answer = page.getByTestId("ask-direct-answer").last();
@@ -76,10 +77,10 @@ test("eight-step live demo", async ({ page }) => {
   await page.getByRole("link", { name: "Back to Portfolio Intelligence" }).click();
   await expect(page.getByTestId("pipeline-panel")).toContainText("Meridian Services");
 
-  // Step 8 — Back to the Overview: filters and figures remain consistent
+  // Step 8 — Back to Portfolio: filters and figures remain consistent
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Portfolio", exact: true }).click();
-  await expect.poll(() => tableRowCount(page)).toBe(7);
   await expect.poll(() => kpiText(page, "kpi-revenue")).toBe(servicesRevenue);
+  await expect(page.getByTestId("fund-total")).toContainText(servicesRevenue!);
   await page.getByTestId("reset-filters").click();
   await expect.poll(() => kpiText(page, "kpi-revenue")).toBe(totalRevenue);
 

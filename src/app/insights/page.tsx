@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { InsightsPage } from "@/components/insights/InsightsPage";
+import { Forward } from "@/components/shell/Forward";
 
 export default function Page() {
   return (
     <Suspense>
-      <InsightsPage />
+      <Forward from="insights" />
     </Suspense>
   );
 }

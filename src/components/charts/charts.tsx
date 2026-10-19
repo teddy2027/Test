@@ -12,15 +12,12 @@ import {
   LineChart,
   ReferenceLine,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
-  ZAxis,
 } from "recharts";
 import type { MetricFormat } from "@/lib/engine/metrics";
-import { fmtMetric, fmtPct, fmtUsd } from "@/lib/format";
+import { fmtMetric, fmtUsd } from "@/lib/format";
 
 export const SERIES = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "#e87ba4", "#6250d6"];
 // Recharts needs concrete colors for some props; mirror of the CSS tokens.
@@ -285,70 +282,6 @@ export function PairedBars({
           <LabelList dataKey="b" position="right" content={(p) => valueLabel(p, format)} />
         </Bar>
       </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-/** Revenue growth (x) vs labor growth (y) with the parity line: points above the line = labor outpacing revenue. */
-export function GrowthScatter({
-  data,
-  highlight,
-  onSelect,
-  height = 300,
-}: {
-  data: { id: string; label: string; x: number; y: number; size: number }[];
-  highlight?: string[];
-  onSelect?: (id: string) => void;
-  height?: number;
-}) {
-  if (!data.length) return null;
-  const all = data.flatMap((d) => [d.x, d.y]);
-  const lo = Math.floor((Math.min(0, ...all) - 0.01) * 20) / 20;
-  const hi = Math.ceil((Math.max(...all) + 0.02) * 20) / 20;
-  const ticks: number[] = [];
-  for (let t = lo; t <= hi + 1e-9; t += 0.1) ticks.push(Math.round(t * 100) / 100);
-  const labelled = new Set(highlight?.length ? highlight : []);
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ScatterChart margin={{ top: 12, right: 24, left: 4, bottom: 16 }}>
-        <CartesianGrid stroke={GRID} />
-        <XAxis type="number" dataKey="x" name="Revenue growth" domain={[lo, hi]} ticks={ticks} tickFormatter={axisFmt("pct")} tickLine={false} axisLine={{ stroke: GRID }} label={{ value: "Revenue growth (YoY)", position: "insideBottom", offset: -8, fontSize: 11, fill: AXIS }} />
-        <YAxis type="number" dataKey="y" name="Labor cost growth" domain={[lo, hi]} ticks={ticks} tickFormatter={axisFmt("pct")} tickLine={false} axisLine={false} width={48} label={{ value: "Labor growth", angle: -90, position: "insideLeft", offset: 12, fontSize: 11, fill: AXIS }} />
-        <ZAxis type="number" dataKey="size" range={[60, 360]} />
-        <ReferenceLine segment={[{ x: lo, y: lo }, { x: hi, y: hi }]} stroke={AXIS} strokeWidth={1} label={{ value: "Labor = revenue growth", position: "insideTopLeft", fontSize: 10.5, fill: AXIS }} />
-        <Tooltip
-          cursor={false}
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) return null;
-            const d = payload[0].payload as { label: string; x: number; y: number };
-            return (
-              <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs shadow-pop">
-                <div className="mb-1 font-semibold text-ink">{d.label}</div>
-                <div className="flex justify-between gap-4"><span className="text-muted">Revenue growth</span><span className="num">{fmtPct(d.x)}</span></div>
-                <div className="flex justify-between gap-4"><span className="text-muted">Labor growth</span><span className="num">{fmtPct(d.y)}</span></div>
-                <div className="flex justify-between gap-4"><span className="text-muted">Gap</span><span className="num font-medium">{fmtMetric(d.y - d.x, "pp")}</span></div>
-              </div>
-            );
-          }}
-        />
-        <Scatter data={data} onClick={(d: { id?: string }) => d?.id && onSelect?.(d.id)} cursor={onSelect ? "pointer" : undefined}>
-          {data.map((d) => (
-            <Cell key={d.id} fill={!highlight?.length || highlight.includes(d.id) ? (d.y - d.x > 0.08 ? SERIES_HEX[1] : SERIES_HEX[0]) : MUTED} stroke="#fff" strokeWidth={2} />
-          ))}
-          <LabelList
-            dataKey="label"
-            content={(p) => {
-              const { x, y, value, index } = p as { x: number; y: number; value: string; index: number };
-              if (!labelled.has(data[index]?.id)) return null;
-              return (
-                <text x={x + 12} y={y + 4} fontSize={11} fontWeight={600} fill="#0d1220">
-                  {value}
-                </text>
-              );
-            }}
-          />
-        </Scatter>
-      </ScatterChart>
     </ResponsiveContainer>
   );
 }

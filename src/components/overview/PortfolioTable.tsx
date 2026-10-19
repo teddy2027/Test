@@ -23,6 +23,7 @@ import { buildCsv, downloadText, slug, type CsvColumn } from "@/lib/export";
 import { fmtMetric, fmtPct, fmtUsd } from "@/lib/format";
 import { CardHeader, MetricLabel, Popover, PopoverContent, PopoverTrigger, Tip, Button } from "../ui/primitives";
 import { Delta, StatusPill, WatchButton } from "../fin/fin";
+import { routes } from "@/lib/routes";
 import { AddCompanyDialog } from "../companies/AddCompanyDialog";
 
 const MAX_COMPARE = 5;
@@ -288,7 +289,7 @@ export function PortfolioTable({ s, basis, filters }: { s: PortfolioSummary; bas
             )}
             <Tip content={selected.length < 2 ? `Tick 2–${MAX_COMPARE} companies to compare them side by side` : "Open a side-by-side comparison"}>
               <span>
-                <Button size="sm" variant={selected.length >= 2 ? "primary" : "secondary"} disabled={selected.length < 2} onClick={() => router.push(`/compare?ids=${selected.join(",")}`)} data-testid="compare-selected">
+                <Button size="sm" variant={selected.length >= 2 ? "primary" : "secondary"} disabled={selected.length < 2} onClick={() => router.push(routes.compareSide(selected))} data-testid="compare-selected">
                   <GitCompare className="h-3.5 w-3.5" /> Compare{selected.length >= 2 ? ` (${selected.length})` : ""}
                 </Button>
               </span>

@@ -1,6 +1,10 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { CompaniesSection } from "@/components/companies/CompaniesSection";
 
-/** The company list lives on the Portfolio page. */
 export default function Page() {
-  redirect("/");
+  return (
+    <Suspense>
+      <CompaniesSection />
+    </Suspense>
+  );
 }

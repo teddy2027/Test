@@ -5,6 +5,7 @@
  * anything the engine cannot compute is reported as unavailable.
  */
 import { getData } from "../data";
+import { routes } from "../routes";
 import { lastReportedLabel } from "../data/calendar";
 import type { Company } from "../data/types";
 import { mean, median, safeDiv, type N } from "../engine/core";
@@ -172,7 +173,7 @@ function unsupported(q: ParsedQuery, reason: string, scope = ""): Answer {
     rows: [],
     chart: null,
     whyItMatters: "Answers are limited to questions the analytics engine can compute exactly from reported actuals, budgets and operating KPIs. Nothing is estimated or generated.",
-    explore: [{ label: "Cross-Portfolio Insights", href: "/insights", kind: "page" }],
+    explore: [{ label: "Findings by company", href: routes.findings(), kind: "page" }],
     methodology: ["Question interpretation is rule-based and local; no figures are produced by a language model.", `Supported question types: ${Object.values(INTENT_LABELS).filter((l) => l !== "Not supported").join(", ")}.`],
     scope,
     followUps: SUGGESTED_QUESTIONS.slice(0, 4),
@@ -330,7 +331,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         rows,
         chart: { type: "bar", title: `${label[0].toUpperCase() + label.slice(1)} by company`, format: "pct", data: rows.map((r) => ({ label: r.label, value: r.values.margin as N, companyId: r.companyId })), referenceValue: k.aggregate, referenceLabel: "Portfolio (weighted)" },
         whyItMatters: `The weighted portfolio margin reflects where the dollars are; the average company margin reflects the typical business. Software and services margins are structurally different, so mix shifts can move the portfolio figure without any company changing.`,
-        explore: [{ label: "Cost benchmarking", href: "/insights?tab=benchmark", kind: "page" }, ...rows.slice(-2).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const }))],
+        explore: [{ label: "Cost benchmarking", href: routes.benchmark(), kind: "page" }, ...rows.slice(-2).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const }))],
         methodology: [
           `Portfolio ${label} = Σ numerator ÷ Σ revenue across companies with complete ${period.label} data.`,
           `Average company ${label} = arithmetic mean of individual company margins.`,
@@ -422,8 +423,8 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
           "When labor grows faster than revenue in a people-intensive business, margin compression usually follows. The gap is a signal to investigate — staffing levels, pay rates, utilization and pricing — not proof of a specific cause.",
         explore: [
           ...faster.slice(0, 3).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const })),
-          ...(faster[0] ? [{ label: `Compare ${faster[0].label} with peers`, href: `/companies/${faster[0].companyId}#peers`, kind: "compare" as const }] : []),
-          { label: "Cost benchmarking", href: "/insights?tab=benchmark", kind: "page" },
+          ...(faster[0] ? [{ label: `Compare ${faster[0].label} with peers`, href: routes.comparePeers(faster[0].companyId!), kind: "compare" as const }] : []),
+          { label: "Cost benchmarking", href: routes.benchmark(), kind: "page" },
         ],
         methodology: [
           "Labor expense = direct labor (in COGS) + operating personnel (personnel within S&M, R&D and G&A). Categories are mutually exclusive.",
@@ -548,7 +549,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         rows,
         chart: { type: "bar", title: conversionMode ? "TTM cash conversion (CFO ÷ EBITDA)" : "Operating cash flow change", format: "pct", data: rows.map((r) => ({ label: r.label, value: (conversionMode ? r.values.conversion : r.values.cfoGrowth) as N, companyId: r.companyId })), referenceValue: conversionMode ? THRESHOLDS.cashConversionFloor : 0 },
         whyItMatters: "EBITDA that does not convert into cash cannot service debt or fund growth. Divergence between EBITDA and operating cash flow usually points to working capital (receivables) or financing costs.",
-        explore: [...(declining.length ? declining : weak).slice(0, 3).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const })), { label: "Cash-flow insights", href: "/insights?category=Cash%20Flow", kind: "page" }],
+        explore: [...(declining.length ? declining : weak).slice(0, 3).map((r) => ({ label: r.label, href: ROUTE(r.companyId!), kind: "company" as const })), { label: "Cash-flow findings", href: routes.findings({ category: "Cash Flow" }), kind: "page" }],
         methodology: [
           "Operating cash flow is reported by each company (EBITDA − cash interest − cash taxes − increase in net working capital); it is never approximated by EBITDA.",
           "Cash conversion = TTM operating cash flow ÷ TTM EBITDA; trailing twelve months smooths quarterly tax and working-capital timing. N/A when EBITDA ≤ 0.",
@@ -786,7 +787,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         rows: rows.map((r) => ({ ...r, values: Object.fromEntries(Object.entries(r.values).map(([k, v]) => [k, fmtMetric(v as N, metrics.find((m) => m[0] === r.note)![2])])) as Record<string, string>, note: undefined })),
         chart: { type: "bar", title: "EBITDA margin", format: "pct", data: as.map((a) => ({ label: a.company.name, value: a.current.metrics.ebitdaMargin, companyId: a.company.id })) },
         whyItMatters: "Normalized metrics (growth, margins, cost ratios) are compared rather than absolute size, so a larger company is not implied to be better run.",
-        explore: [{ label: "Compare side by side", href: `/compare?ids=${ids.join(",")}`, kind: "compare" }, ...as.map((a) => ({ label: a.company.name, href: ROUTE(a.company.id), kind: "company" as const }))],
+        explore: [{ label: "Compare side by side", href: routes.compareSide(ids), kind: "compare" }, ...as.map((a) => ({ label: a.company.name, href: ROUTE(a.company.id), kind: "company" as const }))],
         methodology: ["All metrics from the same period and comparison basis for each company.", ...as.filter((a) => curReason(a)).map((a) => `${a.company.name}: ${curReason(a)}.`)],
         followUps: [`Compare ${x.company.name} with other ${x.company.sector === "Software" ? "software" : "services"} businesses`],
       };
@@ -855,7 +856,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         whyItMatters: "Peer medians show what is achievable for similar businesses inside the same portfolio, which makes gaps more actionable than comparisons with external benchmarks of unknown definition.",
         explore: [
           { label: `Open ${subj.name}`, href: ROUTE(id), kind: "company" },
-          { label: "Open full peer comparison", href: `/companies/${id}#peers`, kind: "compare" },
+          { label: "Open full peer comparison", href: routes.comparePeers(id), kind: "compare" },
           ...bm.peers.slice(0, 3).map((p) => ({ label: p.company.name, href: ROUTE(p.company.id), kind: "company" as const })),
         ],
         methodology: [`Peer rule: ${bm.rule}`, "Benchmark statistic: median (robust to outliers); average shown for reference.", ...bm.warnings, ...bm.ineligible.map((x) => `Not eligible — ${x.company.name}: ${x.reason}.`)],
@@ -959,7 +960,7 @@ export function answerQuestion(q: ParsedQuery, ctx: AskContext): Answer {
         rows: ins.map((i) => ({ label: i.title, values: { detail: i.finding }, tone: i.severity === "positive" ? "pos" : "neg" })),
         chart: null,
         whyItMatters: "Company summaries combine the period's key metrics with the insight engine's flags for that company.",
-        explore: [{ label: `Open ${a.company.name}`, href: ROUTE(id), kind: "company" }, { label: "Compare with peers", href: `/companies/${id}#peers`, kind: "compare" }],
+        explore: [{ label: `Open ${a.company.name}`, href: ROUTE(id), kind: "company" }, { label: "Compare with peers", href: routes.comparePeers(id), kind: "compare" }],
         methodology: ["Figures from the company's submitted or connected ledger data; insight thresholds as configured in the insight engine."],
         followUps: [`Compare ${a.company.name} with other ${a.company.sector === "Software" ? "software" : "services"} businesses`],
       };

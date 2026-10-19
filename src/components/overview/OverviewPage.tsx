@@ -10,7 +10,7 @@ import { useApp } from "@/lib/state/store";
 import { Badge, Button, Segmented } from "../ui/primitives";
 import { KpiCards } from "./KpiCards";
 import { PerformanceCharts } from "./PerformanceCharts";
-import { PortfolioTable } from "./PortfolioTable";
+import { FundSummary } from "./FundSummary";
 import { Signals } from "./Signals";
 import type { ComparisonBasis } from "@/lib/engine/periods";
 import type { AggregationMode } from "@/lib/engine/portfolio";
@@ -82,7 +82,7 @@ export function OverviewPage() {
           <KpiCards s={summary} basis={basis} mode={aggregation} />
           <Signals insights={insights} />
           <PerformanceCharts s={summary} ids={ids} period={period} basis={basis} />
-          <PortfolioTable s={summary} basis={basis} filters={filters} />
+          <FundSummary total={summary} companies={companies} period={period} basis={basis} data={data} />
         </>
       )}
     </div>

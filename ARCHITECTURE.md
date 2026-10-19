@@ -13,7 +13,7 @@ src/
     format.ts    single number-formatting module (N/A, $M/$K, %, pp)
     export.ts    CSV builder with synthetic-data provenance header
   components/    shell, ui primitives, fin display atoms, charts, and one folder per page
-  app/           menu: / (Portfolio) · /insights · /connections; sub-views: /companies/[id] (incl. #peers) · /compare?ids= · /reporting (quarterly pack); /companies redirects to /; simulated DualEntry pages /invite/[token] · /approve/[token]
+  app/           menu: / (Portfolio) · /companies (tabs: list, findings, compare [side | peers | benchmark], ask) · /connections; sub-views: /companies/[id] · /reporting (quarterly pack); /insights and /compare forward to /companies; simulated DualEntry pages /invite/[token] · /approve/[token]
 tests/unit       Vitest (calculations, aggregation, data integrity, insights, query)
 tests/e2e        Playwright (navigation, filters, exports, add company, upload, explore invite (demo + sandbox), approval, Ask, eight-step demo)
 ```
@@ -50,7 +50,7 @@ Normalized tables, each validated by a Zod schema (`types.ts`):
 - **`company.ts`** — `analyzeCompany(id, period)` → current values and ratios, prior and YoY comparison blocks (growth, pp changes, operating leverage), budget block (variance = actual − budget, % on |budget|). A period is *complete* only if every month exists; partial periods are never annualized. Growth is null on a zero/negative base. Acquisitions closing after the comparison start and on/before the current end flag the comparison; **organic growth** is computed only when entity ledgers allow a constant perimeter. Budgets exclude acquisitions closed in the budget year.
 - **`portfolio.ts`** — two explicitly separate families: *aggregate* (Σ numerator ÷ Σ denominator over a like-for-like cohort) and *average company* (mean of company ratios). Coverage objects list every excluded company and why. Trend series use a fixed cohort so reporting gaps don't distort lines. Sums are management-view aggregates, not GAAP consolidation.
 - **`filters.ts`** — fund, sector, business model, vintage, geography, investment-date range.
-- **`benchmark.ts`** — peer cohorts by sector / business model / fund / vintage / revenue band / portfolio (used by the Portfolio comparison chart's *Group by* and the company page's peers section); subject excluded; median default; warnings for n < 3 (not meaningful), n < 5 (caution), mixed sectors, wide scale range.
+- **`benchmark.ts`** — peer cohorts by sector / business model / fund / vintage / revenue band / portfolio (used by Compare › *Benchmark by group* and *Company vs peers*); subject excluded; median default; warnings for n < 3 (not meaningful), n < 5 (caution), mixed sectors, wide scale range.
 - **`insights.ts`** — deterministic rules with configurable `THRESHOLDS` (labor gap > 8 pp, margin contraction > 3 pp, revenue miss > 10%, EBITDA miss > 15%, TTM cash conversion < 50%, peer gap > 8 pp, reclassification signature, unusual QoQ change, missing/partial/stale data, definition differences, positive outliers). Each insight carries company, category, period, computed finding, supporting figures, severity, hypotheses, caveats and chart metrics. Ordering: severity → editorial rule priority → magnitude.
 - **`series.ts`, `compareMetrics.ts`** — quarterly/monthly/annual series and the normalized comparison metric set used by the comparison and benchmarking views.
 
@@ -69,14 +69,14 @@ Normalized tables, each validated by a Zod schema (`types.ts`):
 
 ## State
 
-`zustand` store: filters, period selection, comparison basis, aggregation mode and Ask history persist in `sessionStorage` (per tab, survive reloads); the watchlist persists in `localStorage`. URL parameters drive deep links (`/insights?tab=ask&q=…`, `?insight=…`, `/companies/<id>#peers`, `/compare?ids=a,b`; old `/compare?subject=` links forward to the company page).
+`zustand` store: filters, period selection, comparison basis, aggregation mode and Ask history persist in `sessionStorage` (per tab, survive reloads); the watchlist persists in `localStorage`. URL parameters drive deep links (`/companies?tab=ask&q=…`, `?tab=findings&insight=…`, `?tab=compare&mode=peers&subject=<id>`, `?tab=compare&mode=side&ids=a,b`, `?tab=compare&mode=benchmark&metric=…&group=…`; built in `src/lib/routes.ts`; old `/insights` and `/compare` links forward).
 
 ## Workspace overlay (`src/lib/workspace`)
 
 Everything the user creates lives in a small `Workspace` object (added companies, accepted upload submissions, data-share requests and scopes, migration state), persisted to `localStorage`. The base dataset stays deterministic; `getData()` returns `indexDataset(applyWorkspace(base, workspace))`:
 
 - **Added companies** join the dataset with no months (`lastReportedMonth = -1`, shown as *Awaiting data* and excluded from totals). A DualEntry company is synthesized from a template company of the same business model, scaled to its revenue, only after the company approves the share.
-- **Uploads** (`csv.ts`) are validated against control totals, required lines, duplicates, future months and restatements; accepted submissions overwrite those months (the latest upload wins; earlier versions stay in the history).
+- **Uploads** (`csv.ts`) accept the template or the company's own export (`mapping.ts`: account → portfolio line, keyword suggestions, remembered per company, converted to the template so the same validation applies); budgets (`budget.ts`) replace the company's budget rows month by month. Uploads are validated against control totals, required lines, duplicates, future months and restatements; accepted submissions overwrite those months (the latest upload wins; earlier versions stay in the history).
 - **Share scope** is enforced in the overlay, not the UI: summary granularity removes the revenue split and personnel memos, no cash flow removes cash fields, and a partial entity share is flagged so reconciliation checks skip it.
 - **Migration** (`migration.ts`): stages, rep routing (≥4 entities or ≥$100M revenue → enterprise rep), unique 90-day invite links (demo booking + sandbox), talking points, and the effort model behind the *Sponsor effort* figures.
 

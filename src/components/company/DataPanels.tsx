@@ -47,7 +47,7 @@ export function UploadsPanel({ company, onUpload }: { company: Company; onUpload
         description={`Northbridge uploads ${company.name}'s pack from ${company.accountingSystem} each month`}
         actions={
           <Button variant="primary" size="sm" onClick={onUpload} data-testid="open-upload">
-            <FileUp className="h-3.5 w-3.5" /> Upload monthly figures
+            <FileUp className="h-3.5 w-3.5" /> Upload figures or budget
           </Button>
         }
       />
@@ -68,7 +68,7 @@ export function UploadsPanel({ company, onUpload }: { company: Company; onUpload
         <div>
           <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Upload history</div>
           {months.length === 0 ? (
-            <p className="text-sm text-muted">No packs uploaded yet. Download the template from “Upload monthly figures”.</p>
+            <p className="text-sm text-muted">No packs uploaded yet. Use “Upload figures or budget” — the template or the company’s own export.</p>
           ) : (
             <table className="w-full text-sm" data-testid="upload-history">
               <tbody>
@@ -102,6 +102,8 @@ export function UploadsPanel({ company, onUpload }: { company: Company; onUpload
           <ul className="space-y-1 text-sm">
             {[
               [true, "Consolidated monthly P&L, cash flow and headcount, validated on every upload"],
+              [true, "The company's own export, mapped once and remembered"],
+              [true, "Annual budget, for budget vs actual"],
               [true, "Version history and restatements with reasons"],
               [false, "Same-day figures — data arrives when the pack is sent and uploaded"],
               [false, "Entity-level books and intercompany eliminations"],

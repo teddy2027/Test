@@ -187,11 +187,17 @@ export function ConnectionsPage() {
       <div className="rounded-lg border border-line bg-surface shadow-card" data-testid="connections-table">
         <CardHeader title="Connection inventory" description={`Reporting status for ${period.label} · freshness standard 30 days`} />
         <div className="thin-scroll overflow-x-auto">
-          <table className="w-full min-w-[1080px] text-sm">
+          <table className="w-full min-w-[1240px] text-sm">
             <thead>
               <tr className="border-b border-line bg-subtle text-xs text-muted">
                 <th className="px-4 py-2 text-left font-medium">Company</th>
                 <th className="px-3 py-2 text-left font-medium">Connection</th>
+                <th className="px-3 py-2 text-left font-medium">Finance system</th>
+                <th className="px-3 py-2 text-right font-medium">
+                  <Tip content="Business days the company takes to close its books each month. Mostly a property of the finance team and process — shown as a fact, not as a claim about the software.">
+                    <span className="cursor-help">Month-end close</span>
+                  </Tip>
+                </th>
                 <th className="px-3 py-2 text-left font-medium">Last refresh</th>
                 <th className="px-3 py-2 text-left font-medium">Data through</th>
                 <th className="px-3 py-2 text-left font-medium">{period.label}</th>
@@ -215,7 +221,11 @@ export function ConnectionsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2">
-                      <ConnectionBadge company={c} />
+                      <ConnectionBadge company={c} compact />
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-ink-2">{c.accountingSystem}</td>
+                    <td className="num whitespace-nowrap px-3 py-2 text-right text-ink-2" data-testid={`close-${c.id}`}>
+                      {c.closeDays ? `${c.closeDays} days` : <span className="text-faint">—</span>}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       <FreshnessDot company={c} />

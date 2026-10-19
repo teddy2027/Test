@@ -9,7 +9,7 @@ import { buildAddedCompany } from "./synth";
 import type { ShareScope, Workspace } from "./types";
 
 export function isEmptyWorkspace(ws: Workspace): boolean {
-  return !ws.companies.length && !ws.submissions.length && !ws.requests.some((r) => r.status === "approved");
+  return !ws.companies.length && !ws.submissions.length && !ws.budgetSubmissions.length && !ws.requests.some((r) => r.status === "approved");
 }
 
 /** Fields hidden by the company's sharing scope are nulled before the sponsor sees them. */
@@ -96,6 +96,16 @@ export function applyWorkspace(base: Dataset, ws: Workspace): Dataset {
     }
     companies = companies.map((c) => (c.id === s.companyId && s.uploadedAt > c.lastUpdated ? { ...c, lastUpdated: s.uploadedAt } : c));
   }
+
+  // 2b. Uploaded budgets (later uploads replace earlier ones for the same month).
+  const budgetSubs = [...ws.budgetSubmissions].sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
+  for (const s of budgetSubs) {
+    const months = new Set(s.months);
+    budgetsLocal = budgetsLocal.filter((b) => !(b.companyId === s.companyId && months.has(b.month)));
+    budgetsLocal.push(...s.rows);
+  }
+  const budgeted = new Set(budgetSubs.map((s) => s.companyId));
+  companies = companies.map((c) => (budgeted.has(c.id) ? { ...c, missingFields: c.missingFields.filter((f) => !/^Budget/.test(f)) } : c));
 
   // 3. Demo companies that migrated to DualEntry and approved a data share.
   companies = companies.map((c) => {

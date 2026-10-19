@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { routes } from "@/lib/routes";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as RDropdown from "@radix-ui/react-dropdown-menu";
@@ -14,9 +15,8 @@ import { useDataVersion, useWorkspace } from "@/lib/workspace/store";
 import { Badge, Button, MultiSelect, Popover, PopoverContent, PopoverTrigger, Select, Tip } from "../ui/primitives";
 
 const TITLES: [string, string][] = [
-  ["/insights", "Insights"],
-  ["/compare", "Portfolio · Compare"],
-  ["/companies/", "Portfolio · Company"],
+  ["/companies/", "Companies · Company"],
+  ["/companies", "Companies"],
   ["/connections", "Data Connections"],
   ["/reporting", "Portfolio · Quarterly pack"],
   ["/", "Portfolio"],
@@ -42,8 +42,11 @@ function GlobalSearch() {
   }, []);
   const pages = [
     { label: "Portfolio", href: "/" },
-    { label: "Insights", href: "/insights" },
-    { label: "Ask Your Portfolio", href: "/insights?tab=ask" },
+    { label: "Companies", href: "/companies" },
+    { label: "Findings — companies needing attention", href: routes.findings() },
+    { label: "Compare companies", href: "/companies?tab=compare" },
+    { label: "Benchmark by group (cost benchmarking)", href: routes.benchmark() },
+    { label: "Ask Your Portfolio", href: routes.ask() },
     { label: "Data Connections", href: "/connections" },
     { label: "Quarterly portfolio pack", href: "/reporting" },
   ];
@@ -391,7 +394,7 @@ export function Header() {
       <nav className="thin-scroll flex gap-1 overflow-x-auto border-b border-line bg-surface px-4 py-1.5 lg:hidden" aria-label="Sections">
         {[
           ["/", "Portfolio"],
-          ["/insights", "Insights"],
+          ["/companies", "Companies"],
           ["/connections", "Data Connections"],
         ].map(([href, label]) => (
           <Link key={href} href={href} className={cn("whitespace-nowrap rounded-md px-2.5 py-1 text-sm", (href === "/" ? path === "/" : path.startsWith(href)) ? "bg-brand-soft font-medium text-brand-ink" : "text-ink-2 hover:bg-subtle")}>

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { cohortKey, DIMENSION_LABELS, MIN_COHORT, statsOf, type CohortDimension } from "@/lib/engine/benchmark";
@@ -11,20 +11,35 @@ import { RankBars } from "../charts/charts";
 import { CardHeader, MetricLabel, Select } from "../ui/primitives";
 
 /** Performance and cost measures that are comparable across companies of different size. */
-const METRIC_OPTIONS: { group: string; keys: string[] }[] = [
+export const METRIC_OPTIONS: { group: string; keys: string[] }[] = [
   { group: "Performance", keys: ["revenueGrowth", "ebitdaMargin", "ebitdaMarginChange", "grossMargin", "cashConversion"] },
   { group: "Cost", keys: ["laborIntensity", "laborGrowth", "laborGap", "cogsRatio", "gaRatio", "smRatio", "revenuePerEmployee"] },
 ];
-const GROUP_BY: ("none" | CohortDimension)[] = ["none", "sector", "businessModel", "fund", "revenueBand", "vintage"];
+export type GroupBy = "none" | CohortDimension;
+export const GROUP_BY: GroupBy[] = ["none", "sector", "businessModel", "fund", "revenueBand", "vintage"];
 
 /**
  * One chart for comparing every company on one measure, optionally grouped into peer cohorts
  * (cost benchmarking). Groups share one axis; a group median is shown only from MIN_COHORT companies.
  */
-export function CompareChart({ analyses, period, gb }: { analyses: CompanyAnalysis[]; period: Period; gb: "prior" | "yoy" }) {
+export function CompareChart({
+  analyses,
+  period,
+  gb,
+  metric,
+  setMetric,
+  groupBy,
+  setGroupBy,
+}: {
+  analyses: CompanyAnalysis[];
+  period: Period;
+  gb: "prior" | "yoy";
+  metric: string;
+  setMetric: (k: string) => void;
+  groupBy: GroupBy;
+  setGroupBy: (g: GroupBy) => void;
+}) {
   const router = useRouter();
-  const [metric, setMetric] = useState("revenueGrowth");
-  const [groupBy, setGroupBy] = useState<"none" | CohortDimension>("none");
   const m = CM[metric];
   const complete = useMemo(() => analyses.filter((a) => a.current.status === "complete"), [analyses]);
   const rows = complete.map((a) => ({ a, label: a.company.name, id: a.company.id, value: m.get(a, gb) })).filter((r) => r.value !== null);
@@ -61,7 +76,7 @@ export function CompareChart({ analyses, period, gb }: { analyses: CompanyAnalys
           ariaLabel="Group companies by"
           prefix="Group by"
           value={groupBy}
-          onChange={(v) => setGroupBy(v as "none" | CohortDimension)}
+          onChange={(v) => setGroupBy(v as GroupBy)}
           options={GROUP_BY.map((d) => ({ value: d, label: d === "none" ? "No grouping" : DIMENSION_LABELS[d] }))}
         />
       </div>

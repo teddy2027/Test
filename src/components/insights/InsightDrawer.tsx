@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { routes } from "@/lib/routes";
 import { useMemo } from "react";
 import { ArrowRight, Columns3, Database, ExternalLink, Lightbulb, ShieldAlert } from "lucide-react";
 import { getData } from "@/lib/data";
@@ -289,12 +290,12 @@ function DrawerBody({ insight, universe, onClose }: { insight: Insight; universe
         </Link>
         {c.lastReportedMonth >= 0 && (
           <>
-            <Link href={`/companies/${c.id}#peers`} onClick={onClose}>
+            <Link href={routes.comparePeers(c.id)} onClick={onClose}>
               <Button>
                 <Columns3 className="h-3.5 w-3.5" /> Compare with peers
               </Button>
             </Link>
-            <Link href={`/insights?tab=ask&q=${encodeURIComponent(`Compare ${c.name} with other ${c.sector === "Software" ? "software" : "services"} businesses`)}`} onClick={onClose}>
+            <Link href={routes.ask(`Compare ${c.name} with other ${c.sector === "Software" ? "software" : "services"} businesses`)} onClick={onClose}>
               <Button variant="ghost">
                 <ExternalLink className="h-3.5 w-3.5" /> Ask about {c.name}
               </Button>

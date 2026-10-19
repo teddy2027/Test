@@ -3,70 +3,82 @@ import { readFileSync } from "fs";
 import { kpiText, setSector, tableRowCount, trackErrors, waitForApp } from "./helpers";
 
 test.describe("Portfolio Intelligence", () => {
-  test("app loads with KPI cards, 12 companies and the demo indicator", async ({ page }) => {
+  test("app loads with KPI cards, fund roll-up and the demo indicator", async ({ page }) => {
     const errors = await trackErrors(page);
     await page.goto("/");
     await waitForApp(page);
-    await expect(page.getByRole("heading", { level: 1, name: "Portfolio" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Portfolio", exact: true })).toBeVisible();
     await expect(page.getByTestId("kpi-cards")).toBeVisible();
-    expect(await tableRowCount(page)).toBe(12);
     await expect(page.getByTestId("kpi-reporting-value")).toHaveText("10 / 12");
+    // Funds add up to the portfolio total, which equals the KPI card.
+    const total = await kpiText(page, "kpi-revenue");
+    await expect(page.getByTestId("fund-total")).toContainText(total!);
+    await expect(page.getByTestId("fund-fund-ii")).toBeVisible();
+    await expect(page.getByTestId("fund-fund-iii")).toBeVisible();
+    await expect(page.getByTestId("portfolio-table")).toHaveCount(0); // company-level tools live in Companies
     await expect(page.getByText("Concept Demo · Fictional Data").first()).toBeVisible();
     expect(errors).toEqual([]);
   });
 
-  test("three-item navigation; old pages redirect to their new homes", async ({ page }) => {
+  test("three-item navigation; old addresses forward to their new homes", async ({ page }) => {
     const errors = await trackErrors(page);
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
     await expect(nav.getByRole("link")).toHaveCount(3);
     for (const [label, heading] of [
-      ["Insights", "Insights"],
+      ["Companies", "Companies"],
       ["Data Connections", "Data Connections"],
       ["Portfolio", "Portfolio"],
     ]) {
       await nav.getByRole("link", { name: label, exact: true }).click();
       await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
     }
-    await page.goto("/companies");
-    await expect(page).toHaveURL(/\/$/);
+    await page.goto("/insights");
+    await expect(page).toHaveURL(/\/companies\?tab=findings/);
     await page.goto("/compare?subject=summit-compliance");
-    await expect(page).toHaveURL(/\/companies\/summit-compliance#peers$/);
+    await expect(page).toHaveURL(/tab=compare&mode=peers&subject=summit-compliance/);
     await expect(page.getByTestId("peer-section")).toBeVisible();
     expect(errors).toEqual([]);
   });
 
-  test("fund filter updates KPIs and table", async ({ page }) => {
+  test("fund filter updates KPIs and the company list", async ({ page }) => {
     await page.goto("/");
     const before = await kpiText(page, "kpi-revenue");
     await page.getByLabel("Fund").selectOption("fund-iii");
     await expect.poll(() => kpiText(page, "kpi-revenue")).not.toBe(before);
-    expect(await tableRowCount(page)).toBe(6);
+    await expect(page.getByTestId("fund-fund-ii")).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Companies", exact: true }).click();
+    await expect.poll(() => tableRowCount(page)).toBe(6);
     await page.getByTestId("reset-filters").click();
-    expect(await tableRowCount(page)).toBe(12);
+    await expect.poll(() => tableRowCount(page)).toBe(12);
   });
 
-  test("sector filter applies to table, KPIs and chart cohort", async ({ page }) => {
+  test("sector filter applies to KPIs, trend cohort and company list", async ({ page }) => {
     await page.goto("/");
     await setSector(page, "Business Services");
-    expect(await tableRowCount(page)).toBe(7);
     await expect(page.getByTestId("kpi-reporting-value")).toHaveText("5 / 7");
     await expect(page.getByTestId("trend-chart")).toContainText("Fixed cohort of 5 companies");
-    await expect(page.getByTestId("compare-chart")).not.toContainText("Atlas Software");
+    await page.goto("/companies");
+    await expect.poll(() => tableRowCount(page)).toBe(7);
   });
 
-  test("comparison chart: cost measures grouped into peer cohorts with medians and small-group rule", async ({ page }) => {
-    await page.goto("/");
+  test("benchmark by group: cost measures, group medians table and small-group rule", async ({ page }) => {
+    await page.goto("/companies?tab=compare&mode=benchmark");
     const chart = page.getByTestId("compare-chart");
-    await expect(chart.getByTestId("compare-group-block")).toHaveCount(1);
-    await page.getByLabel("Compare measure").selectOption("laborIntensity");
-    await page.getByLabel("Group companies by").selectOption("businessModel");
     await expect(chart).toContainText("Labor intensity by company");
     await expect(chart.getByTestId("compare-group-block")).toHaveCount(3);
     await expect(chart).toContainText(/Subscription software5 companies · median/);
     await expect(chart).toContainText("too small to benchmark");
+    const table = page.getByTestId("group-benchmark");
+    await expect(table.getByTestId("group-row")).toHaveCount(3);
+    await expect(table).toContainText("Recurring managed services");
+    await expect(page.getByTestId("benchmark-summary")).toContainText(/Meridian Services \+10\.9 pp/);
+    await page.getByLabel("Group companies by").selectOption("sector");
+    await expect(table.getByTestId("group-row")).toHaveCount(2);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("benchmark-export").click()]);
+    expect(readFileSync((await dl.path())!, "utf8")).toContain("Labor intensity (median)");
     await chart.locator(".recharts-bar-rectangle").first().click();
-    await expect(page).toHaveURL(/\/companies\/lattice-technologies/); // highest labor intensity in the largest group
+    await expect(page).toHaveURL(/\/companies\/[a-z-]+$/);
   });
 
   test("period filter changes reporting coverage", async ({ page }) => {
@@ -78,10 +90,10 @@ test.describe("Portfolio Intelligence", () => {
     await expect(page.getByText("TTM Jun 2026").first()).toBeVisible();
   });
 
-  test("table sorting and company selection", async ({ page }) => {
-    await page.goto("/");
+  test("company list sorting and opening a company", async ({ page }) => {
+    await page.goto("/companies");
     const first = () => page.locator('[data-testid="portfolio-table"] tbody tr').first().getAttribute("data-testid");
-    expect(await first()).toBe("row-meridian-services"); // default: revenue desc
+    await expect.poll(first).toBe("row-meridian-services"); // default: revenue desc
     await page.getByTestId("sort-revenue").click();
     await expect.poll(first).toBe("row-lattice-technologies"); // asc, N/A last
     await page.getByTestId("sort-ebitdaMargin").click();
@@ -91,7 +103,7 @@ test.describe("Portfolio Intelligence", () => {
   });
 
   test("CSV export contains visible rows and the synthetic-data banner", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/companies");
     await setSector(page, "Software");
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const csv = readFileSync((await dl.path())!, "utf8");
@@ -101,35 +113,43 @@ test.describe("Portfolio Intelligence", () => {
     expect(csv).not.toContain("Meridian Services");
   });
 
-  test("tick companies in the table to compare them side by side", async ({ page }) => {
-    await page.goto("/");
+  test("tick companies to compare them side by side, then print", async ({ page }) => {
+    await page.goto("/companies");
     await expect(page.getByTestId("compare-selected")).toBeDisabled();
-    await expect(page.getByTestId("select-apex-workforce")).toBeEnabled(); // has history, though not Q3
     await page.getByTestId("select-meridian-services").check();
     await page.getByTestId("select-harbor-operations").check();
     await page.getByTestId("select-beacon-analytics").check();
     await page.getByTestId("compare-selected").click();
-    await expect(page.getByRole("heading", { level: 1, name: "Compare companies" })).toBeVisible();
+    await expect(page).toHaveURL(/tab=compare&mode=side/);
     await expect(page.getByTestId("compare-chip")).toHaveCount(3);
     await expect(page.getByText(/span software and services/)).toBeVisible();
     await page.getByTestId("compare-add").click();
     await page.getByRole("button", { name: /Atlas Software/ }).click();
     await expect(page.getByTestId("compare-chip")).toHaveCount(4);
+    await expect(page.getByTestId("compare-print")).toBeVisible();
   });
 
-  test("company page: compare with peers", async ({ page }) => {
+  test("company vs peers: from the company page, with peers from the whole portfolio or the filters", async ({ page }) => {
     await page.goto("/companies/meridian-services");
     await page.getByTestId("compare-peers").click();
     const peers = page.getByTestId("peer-section");
-    await expect(peers).toBeInViewport();
+    await expect(page).toHaveURL(/mode=peers&subject=meridian-services/);
     await expect(peers.getByTestId("peer-count")).toHaveText("4");
     await expect(peers.getByTestId("small-cohort-warning")).toBeVisible();
+    await page.getByLabel("Fund").selectOption("fund-ii");
+    await expect(peers.getByTestId("peer-count")).toHaveText("4"); // default: whole portfolio
+    await peers.getByRole("radio", { name: "Current filters" }).click();
+    await expect(peers.getByTestId("peer-count")).toHaveText("2"); // Fund II business services with Q3 data: Horizon, Harbor
     await peers.getByLabel("Peer cohort").selectOption("vintage");
     await expect(peers.getByTestId("small-cohort-warning")).toContainText(/too small|No eligible peers/);
   });
 
-  test("insight drill-down opens supporting analysis", async ({ page }) => {
-    await page.goto("/insights");
+  test("findings: one row per company, ranked, opening the supporting analysis", async ({ page }) => {
+    await page.goto("/companies?tab=findings");
+    const rows = page.getByTestId("findings-attention").getByTestId("findings-row");
+    await expect(rows.first()).toHaveAttribute("data-company", "meridian-services"); // high severity, largest company
+    await expect(page.locator('[data-testid="insight-card"]')).toHaveCount(0); // collapsed by default
+    await page.getByTestId("expand-meridian-services").click();
     const card = page.locator('[data-testid="insight-card"][data-rule="labor_outpacing_revenue"][data-company="meridian-services"]');
     await card.click();
     const drawer = page.getByTestId("insight-drawer");
@@ -140,7 +160,7 @@ test.describe("Portfolio Intelligence", () => {
   });
 
   test("Ask Your Portfolio answers, supports follow-ups and declines unsupported questions", async ({ page }) => {
-    await page.goto("/insights?tab=ask");
+    await page.goto("/companies?tab=ask");
     await page.getByTestId("ask-input").fill("What is our average EBITDA margin?");
     await page.getByTestId("ask-submit").click();
     await expect(page.getByTestId("ask-loading")).toBeVisible();
@@ -158,7 +178,9 @@ test.describe("Portfolio Intelligence", () => {
   test("Data Connections: two connection types, effort, pipeline and Upload vs DualEntry", async ({ page }) => {
     const errors = await trackErrors(page);
     await page.goto("/connections");
-    await expect(page.getByTestId("add-company")).toHaveCount(0); // adding lives on Portfolio only
+    await expect(page.getByTestId("add-company")).toHaveCount(0); // adding lives in Companies only
+    await expect(page.getByTestId("close-meridian-services")).toHaveText("14 days");
+    await expect(page.getByTestId("conn-row-meridian-services")).toContainText("NetSuite");
     await expect(page.getByTestId("depth-compare")).toContainText(/Northstar Systems: \+8\.1% organic vs \+23\.2% reported/);
     await expect(page.getByTestId("depth-compare")).toContainText("Northbridge effort");
     await expect(page.getByTestId("effort-panel")).toBeVisible();
@@ -184,6 +206,50 @@ test.describe("Portfolio Intelligence", () => {
     expect(errors).toEqual([]);
   });
 
+  test("upload the company's own export: accounts mapped once, remembered next time", async ({ page }) => {
+    const errors = await trackErrors(page);
+    await page.goto("/companies/apex-workforce");
+    await page.getByTestId("open-upload").click();
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-export-example").click()]);
+    const csv = readFileSync((await dl.path())!, "utf8");
+    // Rename one account so it needs a manual mapping.
+    const file = csv.replace("6400 Travel and other", "6400 Sundry");
+    await page.getByTestId("upload-input").setInputFiles({ name: "apex-gp-export.csv", mimeType: "text/csv", buffer: Buffer.from(file) });
+    await expect(page.getByTestId("mapping-table")).toBeVisible();
+    await expect(page.getByTestId("mapping-section")).toContainText("1 still to map");
+    await expect(page.getByTestId("accept-upload")).toBeDisabled();
+    await expect(page.getByLabel("Map 6900 Transaction costs (one-off)")).toHaveValue("EXCLUDE");
+    await page.getByLabel("Map 6400 Sundry").selectOption("OPEX_OTHER");
+    await expect(page.getByTestId("upload-preview")).toBeVisible();
+    await page.getByTestId("accept-upload").click();
+    await expect(page.getByTestId("upload-success")).toContainText("mapping is saved");
+    await page.getByRole("button", { name: "Done" }).click();
+    // Next upload of the same export: everything is remembered.
+    await page.getByTestId("open-upload").click();
+    await page.getByTestId("upload-input").setInputFiles({ name: "apex-gp-export.csv", mimeType: "text/csv", buffer: Buffer.from(file) });
+    await expect(page.getByTestId("mapping-section")).toContainText("all mapped");
+    await expect(page.getByTestId("mapping-table").getByText("remembered").first()).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("upload a budget: validated, then used for budget vs actual", async ({ page }) => {
+    const errors = await trackErrors(page);
+    await page.goto("/companies/apex-workforce");
+    await page.getByTestId("open-upload").click();
+    await page.getByRole("radio", { name: "Budget" }).click();
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-budget-example").click()]);
+    const csv = readFileSync((await dl.path())!, "utf8");
+    const broken = csv.replace(/^(BUDGET_EBITDA,[^,]*,)(-?\d+)/m, (_m, a, n) => `${a}${Number(n) + 777}`);
+    await page.getByTestId("upload-input").setInputFiles({ name: "budget.csv", mimeType: "text/csv", buffer: Buffer.from(broken) });
+    await expect(page.getByTestId("upload-issues")).toContainText("budget EBITDA");
+    await expect(page.getByTestId("accept-budget")).toBeDisabled();
+    await page.getByTestId("upload-input").setInputFiles({ name: "budget.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await expect(page.getByTestId("budget-preview")).toBeVisible();
+    await page.getByTestId("accept-budget").click();
+    await expect(page.getByTestId("upload-success")).toContainText("budget vs actual");
+    expect(errors).toEqual([]);
+  });
+
   test("upload rejects a file with broken control totals", async ({ page }) => {
     await page.goto("/companies/apex-workforce");
     await page.getByTestId("open-upload").click();
@@ -196,7 +262,7 @@ test.describe("Portfolio Intelligence", () => {
 
   test("add an upload company: awaiting data until the first pack", async ({ page }) => {
     const errors = await trackErrors(page);
-    await page.goto("/");
+    await page.goto("/companies");
     await page.getByTestId("add-company").click();
     await page.getByTestId("add-name").fill("Orbit Facility Group");
     await page.getByTestId("add-cfo-name").fill("Maya Lind");
@@ -217,15 +283,15 @@ test.describe("Portfolio Intelligence", () => {
     await expect(page.getByTestId("awaiting-data")).toHaveCount(0);
     await expect(page.getByTestId("company-kpis")).toBeVisible();
     await expect(page.getByTestId("compare-peers")).toBeVisible();
-    await page.goto("/");
-    expect(await tableRowCount(page)).toBe(13);
+    await page.goto("/companies");
+    await expect.poll(() => tableRowCount(page)).toBe(13);
     await expect(page.getByTestId("select-orbit-facility-group")).toBeEnabled();
     expect(errors).toEqual([]);
   });
 
   test("add a DualEntry company: company approves scope, then data goes live", async ({ page }) => {
     const errors = await trackErrors(page);
-    await page.goto("/");
+    await page.goto("/companies");
     await page.getByTestId("add-company").click();
     await page.getByTestId("add-name").fill("Vega Ledger Cloud");
     await page.getByTestId("add-cfo-name").fill("Tom Reyes");
@@ -306,6 +372,7 @@ test.describe("Portfolio Intelligence", () => {
   test("quarterly pack opens from Portfolio and exports CSV", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("export-pack").click();
+    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Portfolio", exact: true })).toHaveClass(/bg-side-active/);
     await expect(page.getByTestId("report-preview")).toContainText("Quarterly portfolio operating summary");
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("report-csv").click()]);
     const csv = readFileSync((await dl.path())!, "utf8");

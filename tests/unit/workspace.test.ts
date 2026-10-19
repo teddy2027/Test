@@ -4,6 +4,8 @@ import { validateDataset } from "@/lib/data/validate";
 import { LAST_MONTH } from "@/lib/data/calendar";
 import { buildTemplate, parseAmount, parseCsv, recordToValues, validateUpload } from "@/lib/workspace/csv";
 import { applyWorkspace, existingByMonth } from "@/lib/workspace/overlay";
+import { buildCompanyExport, initialMapping, isTemplate, knownShare, parseCompanyExport, toTemplate } from "@/lib/workspace/mapping";
+import { buildBudgetTemplate, validateBudget } from "@/lib/workspace/budget";
 import { buildAddedCompany, fullHistoryForSeeded } from "@/lib/workspace/synth";
 import { defaultMigration, effortSummary, isStalled, routeRep, STAGE_ORDER, talkingPoints } from "@/lib/workspace/migration";
 import { analyzeCompany } from "@/lib/engine/company";
@@ -14,7 +16,7 @@ import type { NewCompanyInput, Workspace } from "@/lib/workspace/types";
 const base = getBaseDataset();
 const Q3 = resolvePeriod({ kind: "quarter", quarter: "2026-Q3", year: 2025 });
 const apex = base.companies.find((c) => c.id === "apex-workforce")!;
-const emptyWs = (): Workspace => ({ companies: [], submissions: [], requests: [], migration: {} });
+const emptyWs = (): Workspace => ({ companies: [], submissions: [], budgetSubmissions: [], requests: [], migration: {}, mappings: {} });
 
 function apexQ3File(mutate?: (v: Record<number, Record<string, number | string | null>>) => void) {
   const full = fullHistoryForSeeded("apex-workforce")!;
@@ -146,5 +148,70 @@ describe("migration pipeline", () => {
       if (m.sandbox) expect(m.sandbox.name).toBe(d.companyById.get(m.companyId)!.financeLead.name);
     }
     expect(defaultMigration()["meridian-services"]).toBeUndefined(); // left for the live demo
+  });
+});
+
+describe("company's own export: account mapping", () => {
+  const months = [30, 31, 32];
+  const full = fullHistoryForSeeded("apex-workforce")!;
+  const values = Object.fromEntries(months.map((m) => [m, recordToValues(full.monthlyLocal.find((r) => r.month === m)!, full.operational.find((o) => o.month === m))]));
+  const text = buildCompanyExport(apex, months, values);
+  const exp = parseCompanyExport(text);
+
+  it("recognises a company export (not the template) and suggests every account", () => {
+    expect(isTemplate(text)).toBe(false);
+    expect(exp.errors).toEqual([]);
+    const { mapping, source } = initialMapping(exp.rows, undefined);
+    expect(Object.values(mapping).every((t) => t !== null)).toBe(true);
+    expect(mapping["Total revenue"]).toBe("TOTAL_REVENUE");
+    expect(mapping["6900 Transaction costs (one-off)"]).toBe("EXCLUDE");
+    expect(mapping["6000 Sales salaries and commissions"]).toBe("SM_PERSONNEL");
+    expect(Object.values(source).every((x) => x === "suggested")).toBe(true);
+  });
+
+  it("converts to the template and validates to the same figures as the original pack", () => {
+    const { mapping } = initialMapping(exp.rows, undefined);
+    const r = validateUpload(toTemplate(apex, exp, mapping), apex, existingByMonth(base, apex.id));
+    expect(r.errors).toEqual([]);
+    for (const m of r.months) {
+      const orig = full.monthlyLocal.find((x) => x.month === m.month)!;
+      expect(m.record.revenue).toBeCloseTo(orig.revenue, 5);
+      expect(m.record.ebitda).toBeCloseTo(orig.ebitda, 5); // one-off cost excluded
+      expect(m.record.directLabor).toBeCloseTo(orig.directLabor!, 5);
+    }
+  });
+
+  it("catches a wrong mapping through the company's own revenue subtotal", () => {
+    const { mapping } = initialMapping(exp.rows, undefined);
+    const wrong = { ...mapping, "5100 Subcontractors": "REVENUE_SERVICES" as const };
+    const r = validateUpload(toTemplate(apex, exp, wrong), apex, existingByMonth(base, apex.id));
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => /TOTAL_REVENUE is .* but subscription \+ services/.test(e.message))).toBe(true);
+  });
+
+  it("remembers mappings and flags a file whose accounts it doesn't know", () => {
+    const { mapping } = initialMapping(exp.rows, undefined);
+    const remembered = Object.fromEntries(Object.entries(mapping).map(([k, v]) => [k, v!]));
+    const again = initialMapping(exp.rows, remembered);
+    expect(Object.values(again.source).every((x) => x === "remembered")).toBe(true);
+    expect(knownShare(exp.rows, remembered)).toBe(1);
+    expect(knownShare([{ account: "Unrelated", values: {} }], remembered)).toBe(0);
+  });
+});
+
+describe("budget upload", () => {
+  it("validates the EBITDA check and feeds budget vs actual", () => {
+    const months = [30, 31, 32];
+    const file = buildBudgetTemplate(apex, months, Object.fromEntries(months.map((m) => [m, { revenue: 5_000_000, cogs: 3_500_000, opex: 900_000, cfo: 400_000 }])));
+    const r = validateBudget(file, apex, base.budgetsLocal.filter((b) => b.companyId === apex.id));
+    expect(r.errors).toEqual([]);
+    expect(r.rows).toHaveLength(3);
+    expect(r.rows[0].ebitda).toBeCloseTo(0.6, 9);
+    expect(r.replacedMonths).toEqual(months); // Apex already has a budget for these months
+    const broken = file.replace(/^BUDGET_EBITDA,([^,]*),(\d+)/m, (_m, a, n) => `BUDGET_EBITDA,${a},${Number(n) + 10}`);
+    expect(validateBudget(broken, apex, []).ok).toBe(false);
+    const ws = { ...emptyWs(), budgetSubmissions: [{ id: "b1", companyId: apex.id, fileName: "b.csv", uploadedAt: "2026-10-14T10:00:00Z", uploadedBy: "t", months, rows: r.rows }] };
+    const ds = applyWorkspace(base, ws);
+    expect(ds.budgetsLocal.filter((b) => b.companyId === apex.id && months.includes(b.month)).map((b) => b.revenue)).toEqual([5, 5, 5]);
   });
 });

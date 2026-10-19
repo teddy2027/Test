@@ -11,6 +11,8 @@ import type { Company } from "../data/types";
 import type { UploadResult } from "./csv";
 import { defaultMigration, demoNow, emptyMigration, newToken } from "./migration";
 import { companyIdFor } from "./synth";
+import type { BudgetMonthly } from "../data/types";
+import type { MapTarget } from "./mapping";
 import type { MigrationStage, NewCompanyInput, ShareScope, Workspace } from "./types";
 
 const USER = "Alex Morgan";
@@ -18,7 +20,8 @@ const USER = "Alex Morgan";
 interface WorkspaceState extends Workspace {
   rev: number;
   addCompany: (input: NewCompanyInput, takenIds: string[]) => string;
-  acceptUpload: (companyId: string, fileName: string, result: UploadResult, reason: string | null) => void;
+  acceptUpload: (companyId: string, fileName: string, result: UploadResult, reason: string | null, mapping?: Record<string, MapTarget>) => void;
+  acceptBudget: (companyId: string, fileName: string, rows: BudgetMonthly[]) => void;
   sendInvite: (companyId: string, repId: string, token: string, repName: string) => void;
   bookCall: (token: string, slot: string, name: string, email: string) => void;
   openSandbox: (token: string, name: string, email: string) => void;
@@ -29,10 +32,10 @@ interface WorkspaceState extends Workspace {
   reset: () => void;
 }
 
-const initial = (): Workspace => ({ companies: [], submissions: [], requests: [], migration: defaultMigration() });
+const initial = (): Workspace => ({ companies: [], submissions: [], budgetSubmissions: [], requests: [], migration: defaultMigration(), mappings: {} });
 
 function pick(s: WorkspaceState): Workspace {
-  return { companies: s.companies, submissions: s.submissions, requests: s.requests, migration: s.migration };
+  return { companies: s.companies, submissions: s.submissions, budgetSubmissions: s.budgetSubmissions, requests: s.requests, migration: s.migration, mappings: s.mappings };
 }
 
 export const useWorkspace = create<WorkspaceState>()(
@@ -78,7 +81,7 @@ export const useWorkspace = create<WorkspaceState>()(
             hasArr: false,
             financeLead: { name: input.cfoName.trim(), title: input.cfoTitle.trim() || "CFO", email: input.cfoEmail.trim() },
             definitionNotes: [],
-            missingFields: input.onDualEntry ? [] : ["Entity-level P&L", "Balance sheet detail (AR, deferred revenue, AP)", "Working-capital bridge", "Budget (not part of the upload template in this prototype)"],
+            missingFields: input.onDualEntry ? [] : ["Entity-level P&L", "Balance sheet detail (AR, deferred revenue, AP)", "Working-capital bridge", "Budget (not uploaded yet)"],
             closeDays: input.onDualEntry ? 5 : null,
             userAdded: true,
           };
@@ -89,9 +92,11 @@ export const useWorkspace = create<WorkspaceState>()(
           }));
           return id;
         },
-        acceptUpload: (companyId, fileName, result, reason) =>
+        acceptUpload: (companyId, fileName, result, reason, mapping) =>
           commit((ws) => ({
             ...ws,
+            // Remember the company's account mapping so next month's export maps itself.
+            mappings: mapping ? { ...ws.mappings, [companyId]: { ...ws.mappings[companyId], ...mapping } } : ws.mappings,
             submissions: [
               ...ws.submissions,
               {
@@ -108,6 +113,11 @@ export const useWorkspace = create<WorkspaceState>()(
                 warnings: result.warnings.length,
               },
             ],
+          })),
+        acceptBudget: (companyId, fileName, rows) =>
+          commit((ws) => ({
+            ...ws,
+            budgetSubmissions: [...ws.budgetSubmissions, { id: newToken(), companyId, fileName, uploadedAt: demoNow(), uploadedBy: USER, months: rows.map((r) => r.month), rows }],
           })),
         sendInvite: (companyId, repId, token, repName) =>
           commit((ws) => {
@@ -175,11 +185,13 @@ export const useWorkspace = create<WorkspaceState>()(
     },
     {
       name: "de-portfolio-intelligence-workspace",
-      version: 2,
+      version: 3,
       // v1 stored a "discussed" stage and CFO outcomes that no longer exist: keep companies and uploads, reseed the pipeline.
+      // v3 added budget uploads and remembered account mappings.
       migrate: (persisted, version) => {
         const ws = persisted as Workspace;
-        return (version < 2 ? { ...ws, migration: defaultMigration() } : ws) as unknown as WorkspaceState;
+        const v2 = version < 2 ? { ...ws, migration: defaultMigration() } : ws;
+        return { ...v2, budgetSubmissions: v2.budgetSubmissions ?? [], mappings: v2.mappings ?? {} } as unknown as WorkspaceState;
       },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => pick(s),

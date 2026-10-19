@@ -126,26 +126,35 @@ export function recordToValues(r: MonthlyFinancial, op: { employees: number | nu
   };
 }
 
-/** Completes control totals from components so example files reconcile exactly. */
-function withChecks(v: MonthValues): MonthValues {
+/**
+ * Completes control totals from components so example files reconcile exactly.
+ * With `keepProvided`, a total already present (e.g. a company's own revenue subtotal, or total COGS when there is
+ * no labor split) is kept, so the validator can compare it against the components.
+ */
+function withChecks(v: MonthValues, keepProvided = false): MonthValues {
   const n = (k: string) => (typeof v[k] === "number" ? (v[k] as number) : 0);
+  const provided = (k: string) => keepProvided && typeof v[k] === "number";
   const rev = n("REVENUE_SUBSCRIPTION") + n("REVENUE_SERVICES");
-  const cogs = n("COGS_DIRECT_LABOR") + n("COGS_OTHER");
+  const split = typeof v.COGS_DIRECT_LABOR === "number" || typeof v.COGS_OTHER === "number";
+  const cogs = split || !provided("COGS_TOTAL") ? n("COGS_DIRECT_LABOR") + n("COGS_OTHER") : n("COGS_TOTAL");
   const gp = rev - cogs;
   const opex = n("OPEX_SALES_MARKETING") + n("OPEX_RD") + n("OPEX_GENERAL_ADMIN") + n("OPEX_OTHER");
-  return { ...v, TOTAL_REVENUE: rev, COGS_TOTAL: cogs, GROSS_PROFIT: gp, EBITDA: gp - opex };
+  return { ...v, TOTAL_REVENUE: provided("TOTAL_REVENUE") ? v.TOTAL_REVENUE : rev, COGS_TOTAL: cogs, GROSS_PROFIT: gp, EBITDA: gp - opex };
 }
 
-export function buildTemplate(company: Company, months: number[], filled?: Record<number, MonthValues>): string {
+export function buildTemplate(company: Company, months: number[], filled?: Record<number, MonthValues>, opts: { keepProvidedChecks?: boolean } = {}): string {
   const header = ["line_code", "line_item", ...months.map(monthKey)];
-  const lines = LINES.filter((l) => (l.code !== "ARR" || company.hasArr || company.businessModel === "Subscription software") && (l.code !== "REVENUE_SUBSCRIPTION" || company.businessModel === "Subscription software" || company.hasArr) && (!l.code.startsWith("OPEX_RD") || company.sector === "Software"));
+  // Converted company exports keep every line, so nothing mapped is silently dropped.
+  const lines = opts.keepProvidedChecks
+    ? LINES
+    : LINES.filter((l) => (l.code !== "ARR" || company.hasArr || company.businessModel === "Subscription software") && (l.code !== "REVENUE_SUBSCRIPTION" || company.businessModel === "Subscription software" || company.hasArr) && (!l.code.startsWith("OPEX_RD") || company.sector === "Software"));
   const out = [header.join(",")];
   for (const l of lines) {
     const cells = months.map((m) => {
       if (l.code === "COMPANY_ID") return company.id;
       if (l.code === "CURRENCY") return company.baseCurrency;
       if (!filled?.[m]) return "";
-      const v = withChecks(filled[m])[l.code];
+      const v = withChecks(filled[m], opts.keepProvidedChecks)[l.code];
       return v === null || v === undefined ? "" : String(v);
     });
     out.push([l.code, esc(l.label), ...cells.map((c) => esc(c))].join(","));

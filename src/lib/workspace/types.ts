@@ -2,7 +2,8 @@
  * The sponsor's workspace: everything a user adds or does in the prototype on top of the
  * generated demo portfolio. Saved in the browser (localStorage) — there is no database.
  */
-import type { BusinessModel, Company, FundId, Geography, MonthlyFinancial, Sector } from "../data/types";
+import type { BudgetMonthly, BusinessModel, Company, FundId, Geography, MonthlyFinancial, Sector } from "../data/types";
+import type { MapTarget } from "./mapping";
 
 export interface NewCompanyInput {
   name: string;
@@ -46,6 +47,17 @@ export interface Submission {
   restatedMonths: number[];
   restatementReason: string | null;
   warnings: number;
+}
+
+export interface BudgetSubmission {
+  id: string;
+  companyId: string;
+  fileName: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  months: number[];
+  /** Local-currency budget rows, one per month. */
+  rows: BudgetMonthly[];
 }
 
 export type Granularity = "summary" | "detailed" | "entity";
@@ -106,8 +118,11 @@ export interface MigrationState {
 export interface Workspace {
   companies: AddedCompany[];
   submissions: Submission[];
+  budgetSubmissions: BudgetSubmission[];
   requests: ConnectionRequest[];
   migration: Record<string, MigrationState>;
+  /** Per company: the company's own account name → portfolio line, remembered from earlier uploads. */
+  mappings: Record<string, Record<string, MapTarget>>;
 }
 
-export const EMPTY_WORKSPACE: Workspace = { companies: [], submissions: [], requests: [], migration: {} };
+export const EMPTY_WORKSPACE: Workspace = { companies: [], submissions: [], budgetSubmissions: [], requests: [], migration: {}, mappings: {} };

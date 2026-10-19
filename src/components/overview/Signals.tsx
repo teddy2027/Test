@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, CircleDashed, TrendingUp } from "lucide-reac
 import type { Insight } from "@/lib/engine/insights";
 import { fmtMetric } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { routes } from "@/lib/routes";
 import { SeverityBadge } from "../fin/fin";
 
 const KEY_LABELS = ["Gap", "Variance", "Change", "Cash conversion", "Months received", "Days since refresh", "Gross margin change", "Operating leverage"];
@@ -15,10 +16,19 @@ export function keyFigure(i: Insight) {
   return i.figures.find((x) => x.value !== null);
 }
 
+/** The headline number of a finding, as shown next to it in lists. */
+export function keyFigureText(i: Insight): string | null {
+  const f = keyFigure(i);
+  if (!f) return null;
+  if (f.label === "Months received") return `${f.value}/3 mo`;
+  if (f.label === "Days since refresh") return `${f.value}d old`;
+  return fmtMetric(f.value, f.format, { signed: f.format === "pp" || /gap|variance|change|growth/i.test(f.label) });
+}
+
 function Item({ i, count }: { i: Insight; count: number }) {
   const f = keyFigure(i);
   return (
-    <Link href={`/insights?insight=${encodeURIComponent(i.id)}`} className="group flex items-start gap-2.5 rounded-md px-2 py-1.5 hover:bg-subtle" data-testid="signal-item">
+    <Link href={routes.findings({ insight: i.id })} className="group flex items-start gap-2.5 rounded-md px-2 py-1.5 hover:bg-subtle" data-testid="signal-item">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate text-sm font-medium text-ink group-hover:text-brand">{i.companyName}</span>
@@ -29,7 +39,7 @@ function Item({ i, count }: { i: Insight; count: number }) {
           {count > 1 && <span className="text-faint"> · +{count - 1} more</span>}
         </div>
       </div>
-      {f && <span className="num whitespace-nowrap pt-0.5 text-xs font-medium text-ink-2">{f.label === "Months received" ? `${f.value}/3 mo` : f.label === "Days since refresh" ? `${f.value}d old` : fmtMetric(f.value, f.format, { signed: f.format === "pp" || /gap|variance|change|growth/i.test(f.label) })}</span>}
+      {f && <span className="num whitespace-nowrap pt-0.5 text-xs font-medium text-ink-2">{keyFigureText(i)}</span>}
     </Link>
   );
 }
@@ -42,8 +52,8 @@ export function Signals({ insights }: { insights: Insight[] }) {
   const pos = dedupe(insights.filter((i) => i.severity === "positive")).slice(0, 5);
   const gaps = dedupe(insights.filter((i) => i.category === "Reporting Quality" && i.severity !== "low")).slice(0, 5);
   const cols = [
-    { title: "Needs attention", icon: AlertTriangle, tone: "text-neg", items: att, all: attention, empty: "No high or medium-severity findings.", href: "/insights" },
-    { title: "Outperforming", icon: TrendingUp, tone: "text-pos", items: pos, all: insights.filter((i) => i.severity === "positive"), empty: "No positive outliers detected for this period.", href: "/insights?severity=positive" },
+    { title: "Needs attention", icon: AlertTriangle, tone: "text-neg", items: att, all: attention, empty: "No high or medium-severity findings.", href: routes.findings() },
+    { title: "Outperforming", icon: TrendingUp, tone: "text-pos", items: pos, all: insights.filter((i) => i.severity === "positive"), empty: "No positive outliers detected for this period.", href: routes.findings({ severity: "positive" }) },
     { title: "Incomplete or stale data", icon: CircleDashed, tone: "text-warn", items: gaps, all: insights.filter((i) => i.category === "Reporting Quality" && i.severity !== "low"), empty: "All companies in scope have complete, fresh data.", href: "/connections" },
   ];
   return (

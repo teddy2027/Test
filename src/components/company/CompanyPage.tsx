@@ -19,7 +19,7 @@ import { InsightDrawer } from "../insights/InsightDrawer";
 import { InsightCard } from "../insights/InsightFeed";
 import { UploadDialog } from "../uploads/UploadDialog";
 import { ExplorePanel, SharePanel, UploadsPanel } from "./DataPanels";
-import { PeerSection } from "./PeerSection";
+import { routes } from "@/lib/routes";
 import { STAGE_LABEL } from "@/lib/workspace/migration";
 import { useWorkspace } from "@/lib/workspace/store";
 import { Badge, CardHeader, MetricLabel } from "../ui/primitives";
@@ -250,9 +250,9 @@ export function CompanyPage({ id }: { id: string }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {company.lastReportedMonth >= 0 && (
-              <a href="#peers" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink shadow-card hover:bg-subtle" data-testid="compare-peers">
-                <Columns3 className="h-3.5 w-3.5" /> Compare with peers <ArrowDown className="h-3 w-3" />
-              </a>
+              <Link href={routes.comparePeers(company.id)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-sm font-medium text-ink shadow-card hover:bg-subtle" data-testid="compare-peers">
+                <Columns3 className="h-3.5 w-3.5" /> Compare with peers
+              </Link>
             )}
             {company.connection === "upload" && (
               <a href="#explore" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand/15 bg-brand-soft px-3 text-sm font-medium text-brand-ink hover:bg-brand-soft/70" data-testid="explore-dualentry">
@@ -370,8 +370,6 @@ export function CompanyPage({ id }: { id: string }) {
           <SeriesChart data={series as unknown as Record<string, unknown>[]} series={[{ key: "revenueVsBudget", name: "Revenue vs budget" }, { key: "ebitdaVsBudget", name: "EBITDA vs budget", color: SERIES_HEX[1] }]} format="pct" kind="bar" height={210} />
         </ChartCard>
       </div>
-
-      <PeerSection company={company} period={period} basis={basis} />
 
       <Statements company={company} period={period} current={a} />
 

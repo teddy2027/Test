@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Download, Plus, X } from "lucide-react";
+import { AlertTriangle, Download, Plus, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { Company } from "@/lib/data/types";
 import { median } from "@/lib/engine/core";
@@ -15,7 +15,6 @@ import { fmtMetric, fmtPct } from "@/lib/format";
 import { useScope } from "@/lib/state/hooks";
 import { MultiLine, RankBars, SERIES_HEX } from "../charts/charts";
 import { ConnectionBadge } from "../fin/fin";
-import { PageHeader } from "../overview/OverviewPage";
 import { Button, CardHeader, MetricLabel, Popover, PopoverContent, PopoverTrigger, Select } from "../ui/primitives";
 
 const GROUPS: CompareMetric["group"][] = ["Growth", "Profitability", "Cost efficiency", "Cash flow", "Budget", "SaaS", "Scale"];
@@ -61,13 +60,13 @@ function CompanyPicker({ all, selected, onAdd }: { all: Company[]; selected: str
   );
 }
 
-export function ComparePage() {
+/** Side by side: 2–5 chosen companies on the same measures. */
+export function SideBySide() {
   const { period, basis, data } = useScope();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const gb = basis === "prior" ? "prior" : "yoy";
-  const subjectParam = params.get("subject");
   const idsParam = params.get("ids");
   // Companies still awaiting their first figures can't be compared yet.
   const comparable = useMemo(() => data.companies.filter((c) => c.lastReportedMonth >= 0), [data.companies]);
@@ -79,11 +78,6 @@ export function ComparePage() {
   const [barKey, setBarKey] = useState("laborIntensity");
 
   useEffect(() => {
-    // Old "company vs peers" links now live on the company page.
-    if (subjectParam && data.companyById.has(subjectParam)) {
-      router.replace(`/companies/${subjectParam}#peers`);
-      return;
-    }
     if (idsParam) {
       const next = idsParam.split(",").filter(canCompare);
       if (next.length) {
@@ -92,7 +86,7 @@ export function ComparePage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- canCompare only reads data.companyById
-  }, [subjectParam, idsParam, data.companyById]);
+  }, [idsParam, data.companyById]);
 
   const syncUrl = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());
@@ -132,16 +126,8 @@ export function ComparePage() {
 
   return (
     <div className="space-y-4">
-      <Link href="/" className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
-        <ArrowLeft className="h-3 w-3" /> Portfolio
-      </Link>
-      <PageHeader title="Compare companies" subtitle={`${period.label} · growth ${comparisonLabel(gb, period)} · normalized metrics first — scale is not performance`}>
-        <Button size="sm" onClick={exportCsv} data-testid="compare-export">
-          <Download className="h-3.5 w-3.5" /> Export CSV
-        </Button>
-      </PageHeader>
-
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2.5 shadow-card" data-testid="compare-controls">
+        <span className="text-xs text-muted">{period.label} · growth {comparisonLabel(gb, period)}</span>
         {analyses.map((a) => (
           <span key={a.company.id} className="inline-flex items-center gap-1.5 rounded-md border border-line bg-subtle py-1 pl-2 pr-1 text-sm" data-testid="compare-chip">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: colorOf(a.company.id) }} />
@@ -153,6 +139,9 @@ export function ComparePage() {
         ))}
         <CompanyPicker all={comparable} selected={ids} onAdd={addId} />
         <span className="text-xs text-muted">2–5 companies</span>
+        <Button size="sm" onClick={exportCsv} className="no-print" data-testid="compare-export">
+          <Download className="h-3.5 w-3.5" /> Export CSV
+        </Button>
         <div className="ml-auto flex flex-wrap items-center gap-1">
           {GROUPS.map((g) => (
             <button

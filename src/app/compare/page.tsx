@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { ComparePage } from "@/components/compare/ComparePage";
+import { Forward } from "@/components/shell/Forward";
 
 export default function Page() {
   return (
     <Suspense>
-      <ComparePage />
+      <Forward from="compare" />
     </Suspense>
   );
 }

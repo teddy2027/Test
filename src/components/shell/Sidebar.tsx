@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, ChevronRight, LayoutDashboard, Lightbulb, Plug, Star, BookOpen } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, LayoutDashboard, Plug, Star, BookOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import { useApp } from "@/lib/state/store";
@@ -10,11 +10,9 @@ import { useDataVersion } from "@/lib/workspace/store";
 
 const NAV = [
   { href: "/", label: "Portfolio", icon: LayoutDashboard },
-  { href: "/insights", label: "Insights", icon: Lightbulb },
+  { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/connections", label: "Data Connections", icon: Plug },
 ];
-/** Sub-views reached from Portfolio (company pages, side-by-side comparison, quarterly pack) keep it highlighted. */
-const PORTFOLIO_PATHS = ["/companies", "/compare", "/reporting"];
 
 export function Wordmark() {
   // Text wordmark only: no official logo asset could be retrieved. Drop approved assets into /public/brand to replace.
@@ -38,7 +36,8 @@ export function Sidebar() {
   const watch = useApp((s) => s.watchlist);
   const setMethodologyOpen = useApp((s) => s.setMethodologyOpen);
   const setWatchlistOpen = useApp((s) => s.setWatchlistOpen);
-  const isActive = (href: string) => (href === "/" ? path === "/" || PORTFOLIO_PATHS.some((p) => path.startsWith(p)) : path.startsWith(href));
+  // The quarterly pack belongs to Portfolio; company pages and comparisons belong to Companies.
+  const isActive = (href: string) => (href === "/" ? path === "/" || path.startsWith("/reporting") : href === "/companies" ? ["/companies", "/compare", "/insights"].some((p) => path.startsWith(p)) : path.startsWith(href));
 
   return (
     <aside className="no-print sticky top-0 hidden h-screen w-[256px] shrink-0 flex-col border-r border-side-line bg-side text-side-ink lg:flex">
